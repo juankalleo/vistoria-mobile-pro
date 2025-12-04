@@ -1,5 +1,7 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { v4 as uuidv4 } from "uuid";
 import { Vistoria } from '@/types/vistoria';
+import { normalizePlate } from '@/lib/plate';
 
 interface VistoriaDB extends DBSchema {
   vistorias: {
@@ -48,7 +50,11 @@ export async function getNextVistoriaNumber(): Promise<string> {
 
 export async function saveVistoria(vistoria: Vistoria): Promise<void> {
   const database = await getDB();
+  // ensure id exists so record is stored/retrievable reliably
+  if (!vistoria.id) vistoria.id = uuidv4();
   vistoria.atualizadoEm = new Date().toISOString();
+  // normaliza a placa antes de salvar (novo formato LLLNLNN)
+  vistoria.placa = normalizePlate(vistoria.placa || '');
   await database.put('vistorias', vistoria);
 }
 
@@ -71,10 +77,11 @@ export async function deleteVistoria(id: string): Promise<void> {
 export async function searchVistorias(query: string): Promise<Vistoria[]> {
   const all = await getAllVistorias();
   const lowerQuery = query.toLowerCase();
+  const normalizedQuery = normalizePlate(query);
   return all.filter(
     (v) =>
-      v.placa.toLowerCase().includes(lowerQuery) ||
-      v.numero.includes(lowerQuery) ||
+      (v.placa && normalizePlate(v.placa).includes(normalizedQuery)) ||
+      v.numero.includes(query) ||
       v.segurado.toLowerCase().includes(lowerQuery)
   );
 }
