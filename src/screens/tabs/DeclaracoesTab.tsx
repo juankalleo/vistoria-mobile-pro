@@ -4,6 +4,7 @@ import { FormInput } from "@/components/FormInput";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Button } from "@/components/ui/button";
 import { Pen, Check } from "lucide-react";
+import { formatCPF } from "@/utils/formatters";
 
 export function DeclaracoesTab() {
   const { currentVistoria, updateDeclaracaoEntrega, updateDeclaracaoRecebimento } = useVistoriaStore();
@@ -26,14 +27,15 @@ export function DeclaracoesTab() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Declaração de Entrega */}
+      {/* Declaração de Cliente */}
       <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-        <h3 className="text-lg font-bold text-foreground mb-4">📋 Declaração de Entrega</h3>
+        <h3 className="text-lg font-bold text-foreground mb-4">📋 Cliente</h3>
         
         <div className="bg-muted rounded-xl p-4 mb-4 text-sm text-muted-foreground">
           <p>
-            Declaro para os devidos fins que recebi o veículo acima descrito em perfeitas condições 
-            de uso e funcionamento, conforme vistoria realizada no ato da entrega.
+            Declaro que estou de acordo e concordo com todas as informações, condições e dados 
+            descritos nesta vistoria. Confirmo que recebi o veículo acima descrito em perfeitas 
+            condições de uso e funcionamento, conforme vistoria realizada no ato da entrega.
           </p>
         </div>
 
@@ -42,14 +44,15 @@ export function DeclaracoesTab() {
             label="Nome Completo"
             value={currentVistoria.declaracaoEntrega.nome}
             onChange={(e) => updateDeclaracaoEntrega("nome", e.target.value)}
-            placeholder="Nome de quem entrega"
+            placeholder="Nome do cliente"
           />
 
           <FormInput
-            label="RG"
-            value={currentVistoria.declaracaoEntrega.rg}
-            onChange={(e) => updateDeclaracaoEntrega("rg", e.target.value)}
-            placeholder="00.000.000-0"
+            label="CPF"
+            value={currentVistoria.declaracaoEntrega.cpf}
+            onChange={(e) => updateDeclaracaoEntrega("cpf", formatCPF(e.target.value))}
+            placeholder="000.000.000-00"
+            maxLength={14}
           />
 
           <div>
@@ -89,9 +92,9 @@ export function DeclaracoesTab() {
         </div>
       </div>
 
-      {/* Declaração de Recebimento */}
+      {/* Declaração de Destinatário */}
       <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-        <h3 className="text-lg font-bold text-foreground mb-4">📋 Declaração de Recebimento</h3>
+        <h3 className="text-lg font-bold text-foreground mb-4">📋 Destinatário</h3>
         
         <div className="bg-muted rounded-xl p-4 mb-4 text-sm text-muted-foreground">
           <p>
@@ -105,14 +108,15 @@ export function DeclaracoesTab() {
             label="Nome Completo"
             value={currentVistoria.declaracaoRecebimento.nome}
             onChange={(e) => updateDeclaracaoRecebimento("nome", e.target.value)}
-            placeholder="Nome de quem recebe"
+            placeholder="Nome do destinatário"
           />
 
           <FormInput
-            label="RG"
-            value={currentVistoria.declaracaoRecebimento.rg}
-            onChange={(e) => updateDeclaracaoRecebimento("rg", e.target.value)}
-            placeholder="00.000.000-0"
+            label="CPF"
+            value={currentVistoria.declaracaoRecebimento.cpf}
+            onChange={(e) => updateDeclaracaoRecebimento("cpf", formatCPF(e.target.value))}
+            placeholder="000.000.000-00"
+            maxLength={14}
           />
 
           <div>

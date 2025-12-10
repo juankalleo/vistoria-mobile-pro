@@ -51,7 +51,7 @@ export interface DadosCarro {
 
 export interface Assinatura {
   nome: string;
-  rg: string;
+  cpf: string;
   data: string;
   hora: string;
   assinaturaBase64: string;
@@ -80,10 +80,27 @@ export interface Vistoria {
   motivoChamada: string;
   motivoOutro: string;
   dadosCarro: DadosCarro;
+  itensSeguranca: {
+    estepe: StatusItem;
+    macaco: StatusItem;
+    chaveDeRoda: StatusItem;
+    triangulo: StatusItem;
+  };
+  itensAusentes: boolean | null;
+  descricaoItensAusentes: string;
+  possuiAvarias: boolean | null;
+  descricaoAvarias: string;
   observacoes: string;
   declaracaoEntrega: Assinatura;
   declaracaoRecebimento: Assinatura;
   fotos: string[];
+  fotosObrigatorias: {
+    veiculoNoLocal: boolean;
+    veiculoNoGabarito: boolean;
+    veiculoEntregue: boolean;
+  };
+  videoSeguranca: string | null;
+  vistoriaSalva: boolean;
   pdfBase64?: string;
   criadoEm: string;
   atualizadoEm: string;
@@ -140,7 +157,7 @@ export const defaultDadosCarro: DadosCarro = {
 
 export const defaultAssinatura: Assinatura = {
   nome: '',
-  rg: '',
+  cpf: '',
   data: '',
   hora: '',
   assinaturaBase64: '',
@@ -169,10 +186,27 @@ export const createEmptyVistoria = (numero: string): Vistoria => ({
   motivoChamada: '',
   motivoOutro: '',
   dadosCarro: { ...defaultDadosCarro },
+  itensSeguranca: {
+    estepe: null,
+    macaco: null,
+    chaveDeRoda: null,
+    triangulo: null,
+  },
+  itensAusentes: null,
+  descricaoItensAusentes: '',
+  possuiAvarias: null,
+  descricaoAvarias: '',
   observacoes: '',
   declaracaoEntrega: { ...defaultAssinatura },
   declaracaoRecebimento: { ...defaultAssinatura },
   fotos: [],
+  fotosObrigatorias: {
+    veiculoNoLocal: false,
+    veiculoNoGabarito: false,
+    veiculoEntregue: false,
+  },
+  videoSeguranca: null,
+  vistoriaSalva: false,
   criadoEm: new Date().toISOString(),
   atualizadoEm: new Date().toISOString(),
 });

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useVistoriaStore } from "@/store/useVistoriaStore";
 import { saveVistoria } from "@/database/db";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Save, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatPlateDisplay } from "@/lib/plate";
@@ -28,7 +28,7 @@ const tabs = [
 
 export function FormScreen() {
 	const navigate = useNavigate();
-	const { currentVistoria, activeTab, setActiveTab, reset } = useVistoriaStore();
+	const { currentVistoria, activeTab, setActiveTab, reset, markVistoriaAsSaved } = useVistoriaStore();
 	const [saving, setSaving] = useState(false);
 
 	if (!currentVistoria) {
@@ -37,12 +37,31 @@ export function FormScreen() {
 	}
 
 	const handleSave = async () => {
+		// Validar fotos obrigatórias
+		const { fotosObrigatorias } = currentVistoria;
+		if (!fotosObrigatorias.veiculoNoLocal || !fotosObrigatorias.veiculoNoGabarito || !fotosObrigatorias.veiculoEntregue) {
+			toast({
+				title: "Fotos obrigatórias faltando",
+				description: "É necessário adicionar as 3 fotos obrigatórias antes de salvar.",
+				variant: "destructive",
+			});
+			return;
+		}
+
 		setSaving(true);
 		try {
-			await saveVistoria(currentVistoria);
+			// Marcar como salva ANTES de salvar no banco
+			const vistoriaParaSalvar = {
+				...currentVistoria,
+				vistoriaSalva: true,
+			};
+			await saveVistoria(vistoriaParaSalvar);
+			markVistoriaAsSaved();
 			toast({ title: "Vistoria salva!", description: `Ficha #${currentVistoria.numero} salva com sucesso.` });
-			reset();
-			navigate("/");
+			setTimeout(() => {
+				reset();
+				navigate("/");
+			}, 2000);
 		} catch (error) {
 			toast({ title: "Erro ao salvar", description: "Tente novamente.", variant: "destructive" });
 		} finally {
@@ -51,7 +70,7 @@ export function FormScreen() {
 	};
 
 	const handleBack = () => {
-		if (window.confirm("Deseja sair sem salvar?")) {
+		if (window.confirm("Deseja voltar?")) {
 			reset();
 			navigate("/");
 		}
@@ -90,10 +109,18 @@ export function FormScreen() {
 						<h1 className="font-bold">Vistoria #{currentVistoria.numero}</h1>
 						<p className="text-xs opacity-80">{formatPlateDisplay(currentVistoria.placa) || "Sem placa"}</p>
 					</div>
-					<Button onClick={handleSave} disabled={saving} size="sm" variant="secondary">
-						<Save className="w-4 h-4 mr-1" />
-						Salvar
-					</Button>
+					{!currentVistoria.vistoriaSalva && (
+						<Button onClick={handleSave} disabled={saving} size="sm" variant="secondary">
+							<Save className="w-4 h-4 mr-1" />
+							Salvar
+						</Button>
+					)}
+					{currentVistoria.vistoriaSalva && (
+						<div className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg font-medium border border-blue-200 flex items-center gap-1">
+							<Eye className="w-3.5 h-3.5" />
+							Visualizando
+						</div>
+					)}
 				</div>
 			</header>
 
@@ -122,7 +149,7 @@ export function FormScreen() {
 						<ChevronLeft className="w-5 h-5 mr-1" /> Anterior
 					</Button>
 					<Button onClick={() => setActiveTab(Math.min(tabs.length - 1, activeTab + 1))} disabled={activeTab === tabs.length - 1} className="flex-1 h-12">
-						P próximo <ChevronRight className="w-5 h-5 ml-1" />
+						Próximo <ChevronRight className="w-5 h-5 ml-1" />
 					</Button>
 				</div>
 			</footer>

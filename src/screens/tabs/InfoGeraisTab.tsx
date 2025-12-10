@@ -30,8 +30,8 @@ export function InfoGeraisTab() {
           label="Placa"
           value={currentVistoria.placa}
           onChange={(e) => updateField("placa", formatPlaca(e.target.value))}
-          placeholder="ABC-1234"
-          maxLength={8}
+          placeholder="AAA1A23"
+          maxLength={10}
         />
       </div>
 

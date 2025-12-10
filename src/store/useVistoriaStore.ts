@@ -15,12 +15,19 @@ interface VistoriaStore {
   // Field updates
   updateField: <K extends keyof Vistoria>(field: K, value: Vistoria[K]) => void;
   updateDadosCarro: (field: keyof DadosCarro, value: StatusItem) => void;
+  updateItensSeguranca: (field: keyof Vistoria['itensSeguranca'], value: StatusItem) => void;
+  updateItensAusentes: (ausentes: boolean | null, descricao?: string) => void;
+  updateAvarias: (temAvarias: boolean | null, descricao?: string) => void;
   updateDeclaracaoEntrega: (field: keyof Assinatura, value: string) => void;
   updateDeclaracaoRecebimento: (field: keyof Assinatura, value: string) => void;
   
   // Photos
-  addPhoto: (photoBase64: string) => void;
+  addPhoto: (photoBase64: string, fotoType?: 'veiculoNoLocal' | 'veiculoNoGabarito' | 'veiculoEntregue') => void;
   removePhoto: (index: number) => void;
+  markPhotoAsType: (index: number, fotoType: 'veiculoNoLocal' | 'veiculoNoGabarito' | 'veiculoEntregue') => void;
+  addVideo: (videoBase64: string) => void;
+  removeVideo: () => void;
+  markVistoriaAsSaved: () => void;
   
   // Reset
   reset: () => void;
@@ -70,6 +77,44 @@ export const useVistoriaStore = create<VistoriaStore>((set, get) => ({
     });
   },
 
+  updateItensSeguranca: (field, value) => {
+    const { currentVistoria } = get();
+    if (!currentVistoria) return;
+    set({
+      currentVistoria: {
+        ...currentVistoria,
+        itensSeguranca: {
+          ...currentVistoria.itensSeguranca,
+          [field]: value,
+        },
+      },
+    });
+  },
+
+  updateItensAusentes: (ausentes, descricao) => {
+    const { currentVistoria } = get();
+    if (!currentVistoria) return;
+    set({
+      currentVistoria: {
+        ...currentVistoria,
+        itensAusentes: ausentes,
+        descricaoItensAusentes: descricao ?? (ausentes === false ? '' : currentVistoria.descricaoItensAusentes),
+      },
+    });
+  },
+
+  updateAvarias: (temAvarias, descricao) => {
+    const { currentVistoria } = get();
+    if (!currentVistoria) return;
+    set({
+      currentVistoria: {
+        ...currentVistoria,
+        possuiAvarias: temAvarias,
+        descricaoAvarias: descricao ?? (temAvarias === false ? '' : currentVistoria.descricaoAvarias),
+      },
+    });
+  },
+
   updateDeclaracaoEntrega: (field, value) => {
     const { currentVistoria } = get();
     if (!currentVistoria) return;
@@ -98,26 +143,80 @@ export const useVistoriaStore = create<VistoriaStore>((set, get) => ({
     });
   },
 
-  addPhoto: (photoBase64: string) => {
+  addPhoto: (photoBase64, fotoType) => {
     const { currentVistoria } = get();
     if (!currentVistoria) return;
+    
+    const fotosObrigatorias = { ...currentVistoria.fotosObrigatorias };
+    if (fotoType) {
+      fotosObrigatorias[fotoType] = true;
+    }
+    
     set({
       currentVistoria: {
         ...currentVistoria,
         fotos: [...currentVistoria.fotos, photoBase64],
+        fotosObrigatorias,
       },
     });
   },
 
   removePhoto: (index: number) => {
     const { currentVistoria } = get();
-    if (!currentVistoria) return;
+    if (!currentVistoria || currentVistoria.vistoriaSalva) return;
     const newFotos = [...currentVistoria.fotos];
     newFotos.splice(index, 1);
     set({
       currentVistoria: {
         ...currentVistoria,
         fotos: newFotos,
+      },
+    });
+  },
+
+  markPhotoAsType: (index, fotoType) => {
+    const { currentVistoria } = get();
+    if (!currentVistoria) return;
+    set({
+      currentVistoria: {
+        ...currentVistoria,
+        fotosObrigatorias: {
+          ...currentVistoria.fotosObrigatorias,
+          [fotoType]: true,
+        },
+      },
+    });
+  },
+
+  addVideo: (videoBase64) => {
+    const { currentVistoria } = get();
+    if (!currentVistoria) return;
+    set({
+      currentVistoria: {
+        ...currentVistoria,
+        videoSeguranca: videoBase64,
+      },
+    });
+  },
+
+  removeVideo: () => {
+    const { currentVistoria } = get();
+    if (!currentVistoria || currentVistoria.vistoriaSalva) return;
+    set({
+      currentVistoria: {
+        ...currentVistoria,
+        videoSeguranca: null,
+      },
+    });
+  },
+
+  markVistoriaAsSaved: () => {
+    const { currentVistoria } = get();
+    if (!currentVistoria) return;
+    set({
+      currentVistoria: {
+        ...currentVistoria,
+        vistoriaSalva: true,
       },
     });
   },

@@ -1,27 +1,26 @@
 export function formatPlaca(value: string): string {
-  // Remove caracteres não alfanuméricos
-  const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  // Remove espaços e converte para maiúscula
+  // Aceita até 10 caracteres (Mercosul novo: AAA1A23 = 7 caracteres)
+  const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+  return cleaned;
+}
+
+export function formatCPF(value: string): string {
+  const cleaned = value.replace(/\D/g, '').slice(0, 11);
   
-  // Formato antigo: AAA-0000
-  // Formato Mercosul: AAA0A00
   if (cleaned.length <= 3) {
     return cleaned;
   }
   
-  if (cleaned.length <= 7) {
-    // Verifica se é formato Mercosul (4º caractere é número, 5º é letra)
-    const part1 = cleaned.slice(0, 3);
-    const part2 = cleaned.slice(3);
-    
-    // Formato antigo com hífen
-    if (/^\d+$/.test(part2)) {
-      return `${part1}-${part2}`;
-    }
-    // Formato Mercosul sem hífen
-    return `${part1}${part2}`;
+  if (cleaned.length <= 6) {
+    return `${cleaned.slice(0, 3)}.${cleaned.slice(3)}`;
   }
   
-  return cleaned.slice(0, 7);
+  if (cleaned.length <= 9) {
+    return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
+  }
+  
+  return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9)}`;
 }
 
 export function formatTelefone(value: string): string {

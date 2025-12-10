@@ -26,7 +26,9 @@ export function HomeScreen() {
   const loadVistorias = async () => {
     try {
       const data = await getAllVistorias();
-      setVistorias(data);
+      // Filtrar apenas vistorias salvas
+      const vistoriasSalvas = data.filter((v) => v.vistoriaSalva === true);
+      setVistorias(vistoriasSalvas);
     } catch (error) {
       console.error("Erro ao carregar vistorias:", error);
     } finally {
