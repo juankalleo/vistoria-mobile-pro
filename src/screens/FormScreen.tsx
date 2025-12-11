@@ -236,8 +236,16 @@ export function FormScreen() {
 		currentVistoria.fotosObrigatorias.veiculoNoLocal &&
 		currentVistoria.fotosObrigatorias.veiculoNoGabarito;
 
-	const handleBack = () => {
+	const handleBack = async () => {
 		if (window.confirm("Deseja voltar?")) {
+			// Salvar como rascunho antes de sair
+			if (!currentVistoria.vistoriaSalva) {
+				try {
+					await saveRascunhoVistoria(currentVistoria);
+				} catch (error) {
+					console.error("Erro ao salvar rascunho:", error);
+				}
+			}
 			reset();
 			navigate("/");
 		}
