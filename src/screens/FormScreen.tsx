@@ -22,8 +22,9 @@ const tabs = [
 	{ id: 2, label: "Motivo", shortLabel: "Mot." },
 	{ id: 3, label: "Dados", shortLabel: "Dados" },
 	{ id: 4, label: "Obs", shortLabel: "Obs" },
-	{ id: 5, label: "Declar.", shortLabel: "Decl." },
+	{ id: 5, label: "Recebidor", shortLabel: "Receb." },
 	{ id: 6, label: "Fotos", shortLabel: "Fotos" },
+	{ id: 7, label: "Destinatário", shortLabel: "Dest." },
 ];
 
 export function FormScreen() {
@@ -99,11 +100,11 @@ export function FormScreen() {
 			return;
 		}
 
-		// Validar assinaturas (aba Declarações)
+		// Validar assinatura do cliente (aba Cliente - aba 5)
 		if (!currentVistoria.declaracaoEntrega?.assinaturaBase64?.trim()) {
 			toast({
 				title: "Assinatura obrigatória",
-				description: "Assine na aba Declarações (Cliente).",
+				description: "Assine na aba Cliente.",
 				variant: "destructive",
 			});
 			setActiveTab(5);
@@ -113,7 +114,7 @@ export function FormScreen() {
 		if (!currentVistoria.declaracaoEntrega?.nome?.trim()) {
 			toast({
 				title: "Nome obrigatório",
-				description: "Preencha o Nome do Cliente na aba Declarações.",
+				description: "Preencha o Nome do Cliente na aba Cliente.",
 				variant: "destructive",
 			});
 			setActiveTab(5);
@@ -123,40 +124,41 @@ export function FormScreen() {
 		if (!currentVistoria.declaracaoEntrega?.cpf?.trim()) {
 			toast({
 				title: "CPF obrigatório",
-				description: "Preencha o CPF do Cliente na aba Declarações.",
+				description: "Preencha o CPF do Cliente na aba Cliente.",
 				variant: "destructive",
 			});
 			setActiveTab(5);
 			return;
 		}
 
+		// Validar assinatura do destinatário (aba Destinatário - aba 7)
 		if (!currentVistoria.declaracaoRecebimento?.assinaturaBase64?.trim()) {
 			toast({
 				title: "Assinatura obrigatória",
-				description: "Assine na aba Declarações (Destinatário).",
+				description: "Assine na aba Destinatário.",
 				variant: "destructive",
 			});
-			setActiveTab(5);
+			setActiveTab(7);
 			return;
 		}
 
 		if (!currentVistoria.declaracaoRecebimento?.nome?.trim()) {
 			toast({
 				title: "Nome obrigatório",
-				description: "Preencha o Nome do Destinatário na aba Declarações.",
+				description: "Preencha o Nome do Destinatário na aba Destinatário.",
 				variant: "destructive",
 			});
-			setActiveTab(5);
+			setActiveTab(7);
 			return;
 		}
 
 		if (!currentVistoria.declaracaoRecebimento?.cpf?.trim()) {
 			toast({
 				title: "CPF obrigatório",
-				description: "Preencha o CPF do Destinatário na aba Declarações.",
+				description: "Preencha o CPF do Destinatário na aba Destinatário.",
 				variant: "destructive",
 			});
-			setActiveTab(5);
+			setActiveTab(7);
 			return;
 		}
 
@@ -211,8 +213,18 @@ export function FormScreen() {
 	};
 
 	const handleNext = () => {
-		// Se estiver na última aba (Fotos) e todas as fotos obrigatórias estão completas
-		if (activeTab === tabs.length - 1 && allRequiredPhotosComplete) {
+		// Se estiver na aba de Fotos e todas as fotos obrigatórias estão completas, vai para Destinatário
+		if (activeTab === 6 && !allRequiredPhotosComplete) {
+			toast({
+				title: "Fotos obrigatórias faltando",
+				description: "É necessário adicionar as 3 fotos obrigatórias antes de continuar.",
+				variant: "destructive",
+			});
+			return;
+		}
+
+		// Se estiver na última aba (Destinatário - 7), salva
+		if (activeTab === tabs.length - 1) {
 			handleSave();
 		} else {
 			setActiveTab(Math.min(tabs.length - 1, activeTab + 1));
@@ -232,9 +244,13 @@ export function FormScreen() {
 			case 4:
 				return <ObservacoesTab />;
 			case 5:
-				return <DeclaracoesTab />;
+				// Aba do Cliente - mostra apenas dados de entrega
+				return <DeclaracoesTab tipoDeclaracao="entrega" />;
 			case 6:
 				return <FotosTab />;
+			case 7:
+				// Aba do Destinatário - mostra apenas dados de recebimento
+				return <DeclaracoesTab tipoDeclaracao="recebimento" />;
 			default:
 				return <InfoGeraisTab />;
 		}
@@ -293,10 +309,10 @@ export function FormScreen() {
 					</Button>
 					<Button 
 						onClick={handleNext} 
-						disabled={activeTab === tabs.length - 1 && !allRequiredPhotosComplete} 
+						disabled={activeTab === 6 && !allRequiredPhotosComplete} 
 						className="flex-1 h-12"
 					>
-						{activeTab === tabs.length - 1 && allRequiredPhotosComplete ? (
+						{activeTab === tabs.length - 1 ? (
 							<>
 								<Save className="w-5 h-5 mr-1" /> Salvar Vistoria
 							</>
