@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useVistoriaStore } from "@/store/useVistoriaStore";
-import { saveVistoria } from "@/database/db";
+import { saveVistoria, saveRascunhoVistoria } from "@/database/db";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -22,9 +22,10 @@ const tabs = [
 	{ id: 2, label: "Motivo", shortLabel: "Mot." },
 	{ id: 3, label: "Dados", shortLabel: "Dados" },
 	{ id: 4, label: "Obs", shortLabel: "Obs" },
-	{ id: 5, label: "Recebidor", shortLabel: "Receb." },
-	{ id: 6, label: "Fotos", shortLabel: "Fotos" },
+	{ id: 5, label: "Coletor", shortLabel: "Col." },
+	{ id: 6, label: "Fotos 1", shortLabel: "F1" },
 	{ id: 7, label: "Destinatário", shortLabel: "Dest." },
+	{ id: 8, label: "Fotos 2", shortLabel: "F2" },
 ];
 
 export function FormScreen() {
@@ -32,8 +33,29 @@ export function FormScreen() {
 	const { currentVistoria, activeTab, setActiveTab, reset, markVistoriaAsSaved } = useVistoriaStore();
 	const [saving, setSaving] = useState(false);
 
+	// Auto-save rascunho a cada 30 segundos se houver dados
+	useEffect(() => {
+		if (!currentVistoria || currentVistoria.vistoriaSalva) return;
+
+		const autoSaveInterval = setInterval(async () => {
+			try {
+				await saveRascunhoVistoria(currentVistoria);
+			} catch (error) {
+				console.error("Erro ao auto-salvar rascunho:", error);
+			}
+		}, 30000); // 30 segundos
+
+		return () => clearInterval(autoSaveInterval);
+	}, [currentVistoria]);
+
+	// Redirecionar se não há vistoria atual
+	useEffect(() => {
+		if (!currentVistoria) {
+			navigate("/");
+		}
+	}, [currentVistoria, navigate]);
+
 	if (!currentVistoria) {
-		navigate("/");
 		return null;
 	}
 
@@ -100,11 +122,11 @@ export function FormScreen() {
 			return;
 		}
 
-		// Validar assinatura do cliente (aba Cliente - aba 5)
+		// Validar assinatura do recebidor (aba Recebidor - aba 5)
 		if (!currentVistoria.declaracaoEntrega?.assinaturaBase64?.trim()) {
 			toast({
 				title: "Assinatura obrigatória",
-				description: "Assine na aba Cliente.",
+				description: "Assine na aba Coletor.",
 				variant: "destructive",
 			});
 			setActiveTab(5);
@@ -114,7 +136,7 @@ export function FormScreen() {
 		if (!currentVistoria.declaracaoEntrega?.nome?.trim()) {
 			toast({
 				title: "Nome obrigatório",
-				description: "Preencha o Nome do Cliente na aba Cliente.",
+				description: "Preencha o Nome do Coletor na aba Coletor.",
 				variant: "destructive",
 			});
 			setActiveTab(5);
@@ -124,10 +146,21 @@ export function FormScreen() {
 		if (!currentVistoria.declaracaoEntrega?.cpf?.trim()) {
 			toast({
 				title: "CPF obrigatório",
-				description: "Preencha o CPF do Cliente na aba Cliente.",
+				description: "Preencha o CPF do Coletor na aba Coletor.",
 				variant: "destructive",
 			});
 			setActiveTab(5);
+			return;
+		}
+
+		// Validar fotos 1 (Local e Guincho) - aba 6
+		if (!currentVistoria.fotosObrigatorias.veiculoNoLocal || !currentVistoria.fotosObrigatorias.veiculoNoGabarito) {
+			toast({
+				title: "Fotos obrigatórias faltando",
+				description: "É necessário adicionar fotos do Local e Guincho antes de continuar.",
+				variant: "destructive",
+			});
+			setActiveTab(6);
 			return;
 		}
 
@@ -162,15 +195,14 @@ export function FormScreen() {
 			return;
 		}
 
-		// Validar fotos obrigatórias
-		const { fotosObrigatorias } = currentVistoria;
-		if (!fotosObrigatorias.veiculoNoLocal || !fotosObrigatorias.veiculoNoGabarito || !fotosObrigatorias.veiculoEntregue) {
+		// Validar fotos 2 (Entregue) - aba 8
+		if (!currentVistoria.fotosObrigatorias.veiculoEntregue) {
 			toast({
-				title: "Fotos obrigatórias faltando",
-				description: "É necessário adicionar as 3 fotos obrigatórias antes de salvar.",
+				title: "Foto de Entrega obrigatória",
+				description: "É necessário adicionar a foto do Veículo Entregue antes de salvar.",
 				variant: "destructive",
 			});
-			setActiveTab(6);
+			setActiveTab(8);
 			return;
 		}
 
@@ -200,10 +232,9 @@ export function FormScreen() {
 		}
 	};
 
-	const allRequiredPhotosComplete = 
+	const fotosLocaleGabarito = 
 		currentVistoria.fotosObrigatorias.veiculoNoLocal &&
-		currentVistoria.fotosObrigatorias.veiculoNoGabarito &&
-		currentVistoria.fotosObrigatorias.veiculoEntregue;
+		currentVistoria.fotosObrigatorias.veiculoNoGabarito;
 
 	const handleBack = () => {
 		if (window.confirm("Deseja voltar?")) {
@@ -213,17 +244,17 @@ export function FormScreen() {
 	};
 
 	const handleNext = () => {
-		// Se estiver na aba de Fotos e todas as fotos obrigatórias estão completas, vai para Destinatário
-		if (activeTab === 6 && !allRequiredPhotosComplete) {
+		// Se estiver na aba Fotos 1 (6) e não tem as fotos de local e guincho
+		if (activeTab === 6 && !fotosLocaleGabarito) {
 			toast({
 				title: "Fotos obrigatórias faltando",
-				description: "É necessário adicionar as 3 fotos obrigatórias antes de continuar.",
+				description: "É necessário adicionar fotos do Local e Guincho antes de continuar.",
 				variant: "destructive",
 			});
 			return;
 		}
 
-		// Se estiver na última aba (Destinatário - 7), salva
+		// Se estiver na última aba (Fotos 2 - 8), salva
 		if (activeTab === tabs.length - 1) {
 			handleSave();
 		} else {
@@ -244,13 +275,17 @@ export function FormScreen() {
 			case 4:
 				return <ObservacoesTab />;
 			case 5:
-				// Aba do Cliente - mostra apenas dados de entrega
+				// Aba do Coletor
 				return <DeclaracoesTab tipoDeclaracao="entrega" />;
 			case 6:
-				return <FotosTab />;
+				// Fotos 1: Local e Guincho
+				return <FotosTab fotoStage="local-guincho" />;
 			case 7:
-				// Aba do Destinatário - mostra apenas dados de recebimento
+				// Aba do Destinatário
 				return <DeclaracoesTab tipoDeclaracao="recebimento" />;
+			case 8:
+				// Fotos 2: Entregue
+				return <FotosTab fotoStage="entregue" />;
 			default:
 				return <InfoGeraisTab />;
 		}
@@ -309,7 +344,7 @@ export function FormScreen() {
 					</Button>
 					<Button 
 						onClick={handleNext} 
-						disabled={activeTab === 6 && !allRequiredPhotosComplete} 
+						disabled={activeTab === 6 && !fotosLocaleGabarito || currentVistoria.vistoriaSalva}
 						className="flex-1 h-12"
 					>
 						{activeTab === tabs.length - 1 ? (

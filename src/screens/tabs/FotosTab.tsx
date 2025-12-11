@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Camera, ImagePlus, AlertCircle, Video, X, Play } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-export function FotosTab() {
+interface FotosTabProps {
+  fotoStage?: "local-guincho" | "entregue"; // Se não informado, mostra ambos (compatibilidade)
+}
+
+export function FotosTab({ fotoStage }: FotosTabProps) {
   const { currentVistoria, addPhoto, removePhoto, markPhotoAsType, addVideo, removeVideo } = useVistoriaStore();
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -13,6 +17,12 @@ export function FotosTab() {
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   if (!currentVistoria) return null;
+
+  // Se fotoStage = "local-guincho", mostra apenas fotos de local e guincho
+  // Se fotoStage = "entregue", mostra apenas fotos de entregue
+  const mostrarLocal = !fotoStage || fotoStage === "local-guincho";
+  const mostrarGabarito = !fotoStage || fotoStage === "local-guincho";
+  const mostrarEntregue = !fotoStage || fotoStage === "entregue";
 
   const isVistoriaSalva = currentVistoria.vistoriaSalva;
   const totalFotos = currentVistoria.fotos.length;
@@ -99,10 +109,15 @@ export function FotosTab() {
   };
 
   const requiredPhotos = [
-    { key: 'veiculoNoLocal' as const, label: 'Veículo no Local', description: 'Foto do veículo no local de saída' },
-    { key: 'veiculoNoGabarito' as const, label: 'Veículo no Gabarito', description: 'Foto do veículo embarcado no guincho' },
-    { key: 'veiculoEntregue' as const, label: 'Veículo Entregue', description: 'Foto do veículo entregue no destino' },
+    { key: 'veiculoNoLocal' as const, label: 'Veículo no Local', description: 'Foto do veículo no local de saída', stage: 'local-guincho' },
+    { key: 'veiculoNoGabarito' as const, label: 'Veículo no Gabarito', description: 'Foto do veículo embarcado no guincho', stage: 'local-guincho' },
+    { key: 'veiculoEntregue' as const, label: 'Veículo Entregue', description: 'Foto do veículo entregue no destino', stage: 'entregue' },
   ];
+
+  const fotosVisiveis = requiredPhotos.filter(foto => {
+    if (!fotoStage) return true; // Se sem fotoStage, mostra tudo (compatibilidade)
+    return foto.stage === fotoStage;
+  });
 
   const allRequiredPhotosPresent = 
     currentVistoria.fotosObrigatorias.veiculoNoLocal &&
@@ -115,9 +130,13 @@ export function FotosTab() {
         <div className="flex gap-3">
           <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-semibold text-blue-900 mb-2">3 Fotos Obrigatórias:</h4>
+            <h4 className="font-semibold text-blue-900 mb-2">
+              {fotoStage === 'local-guincho' ? '2 Fotos Obrigatórias (Local e Guincho):' : 
+               fotoStage === 'entregue' ? '1 Foto Obrigatória (Entrega):' :
+               '3 Fotos Obrigatórias:'}
+            </h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              {requiredPhotos.map((photo) => (
+              {fotosVisiveis.map((photo) => (
                 <li key={photo.key} className="flex items-start gap-2">
                   <span className={`inline-block w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${
                     currentVistoria.fotosObrigatorias[photo.key]
@@ -237,7 +256,7 @@ export function FotosTab() {
             Classificar foto #{selectedPhotoIndex + 1}:
           </p>
           <div className="grid grid-cols-1 gap-2">
-            {requiredPhotos.map((photo) => {
+            {fotosVisiveis.map((photo) => {
               const isCurrentPhotoType = currentVistoria.fotoTypes[selectedPhotoIndex] === photo.key;
               const isTypeAlreadyUsed = currentVistoria.fotoTypes.some((t, idx) => t === photo.key && idx !== selectedPhotoIndex);
               
@@ -271,7 +290,12 @@ export function FotosTab() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="form-label">
-              {currentVistoria.fotos.length}/{maxFotos} foto(s) anexada(s)
+              {currentVistoria.fotos.map((_, idx) => currentVistoria.fotoTypes?.[idx]).filter(t => {
+                if (!fotoStage) return true;
+                if (fotoStage === 'local-guincho') return t === 'veiculoNoLocal' || t === 'veiculoNoGabarito';
+                if (fotoStage === 'entregue') return t === 'veiculoEntregue';
+                return false;
+              }).length}/{maxFotos} foto(s) anexada(s)
             </p>
             {allRequiredPhotosPresent && (
               <span className="text-xs bg-success/10 text-success px-2 py-1 rounded-lg font-medium">
@@ -280,22 +304,33 @@ export function FotosTab() {
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {currentVistoria.fotos.map((foto, index) => (
-              <div
-                key={index}
-                onClick={() => !isVistoriaSalva && setSelectedPhotoIndex(index)}
-                className={!isVistoriaSalva ? "cursor-pointer" : ""}
-              >
-                <PhotoItem
-                  src={foto}
-                  index={index}
-                  onRemove={() => removePhoto(index)}
-                  canRemove={!isVistoriaSalva}
-                  fotoType={currentVistoria.fotoTypes?.[index]}
-                  isMarkedAsType={!!currentVistoria.fotoTypes?.[index]}
-                />
-              </div>
-            ))}
+            {currentVistoria.fotos.map((foto, index) => {
+              const fotoType = currentVistoria.fotoTypes?.[index];
+              // Filtrar fotos baseado no fotoStage
+              if (fotoStage === 'local-guincho' && fotoType !== 'veiculoNoLocal' && fotoType !== 'veiculoNoGabarito') {
+                return null;
+              }
+              if (fotoStage === 'entregue' && fotoType !== 'veiculoEntregue') {
+                return null;
+              }
+              
+              return (
+                <div
+                  key={index}
+                  onClick={() => !isVistoriaSalva && setSelectedPhotoIndex(index)}
+                  className={!isVistoriaSalva ? "cursor-pointer" : ""}
+                >
+                  <PhotoItem
+                    src={foto}
+                    index={index}
+                    onRemove={() => removePhoto(index)}
+                    canRemove={!isVistoriaSalva}
+                    fotoType={currentVistoria.fotoTypes?.[index]}
+                    isMarkedAsType={!!currentVistoria.fotoTypes?.[index]}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (

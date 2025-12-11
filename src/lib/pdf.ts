@@ -3,7 +3,6 @@ import { Vistoria } from "@/types/vistoria";
 
 // CONFIGURAÇÕES DO CABEÇALHO / CORES
 const BANNER_LOCAL = "/hguinchos.png";
-const BANNER_FALLBACK = "https://via.placeholder.com/1200x300/0f4c81/ffffff?text=GRUPO+H+GUINCHOS";
 
 const PRIMARY = "#0f4c81";
 const ACCENT = "#e9ecef";
@@ -59,6 +58,11 @@ async function fixImageOrientation(dataUrl: string): Promise<string> {
         // Desenha a imagem normalmente - o navegador respeita EXIF automaticamente
         canvas.width = img.width;
         canvas.height = img.height;
+        
+        // Preenche com branco antes de desenhar a imagem
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
         ctx.drawImage(img, 0, 0);
         
         resolve(canvas.toDataURL('image/jpeg', 0.95));
@@ -153,7 +157,6 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
   
   // Logo (se existir)
   let bannerData = await fetchImageAsDataUrl(BANNER_LOCAL);
-  if (!bannerData) bannerData = await fetchImageAsDataUrl(BANNER_FALLBACK);
   
   if (bannerData) {
     const size = await getImageSize(bannerData);
@@ -228,8 +231,10 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
     { label: "Especificação", value: normalizeText(v.motivoOutro || "-") },
     { label: "Tipo de Veículo", value: normalizeText(v.tipoVeiculo || "-") },
     { label: "Condição dos Pneus", value: normalizeText(v.condicaoPneus || "-") },
-    { label: "Nível Combustível", value: normalizeText(v.nivelCombustivel || "-") }
-  ].filter(item => item.value !== "-");
+    { label: "Nível Combustível", value: normalizeText(v.nivelCombustivel || "-") },
+    { label: "Quilometragem", value: normalizeText(v.quilometragem || "-") },
+    { label: "Possui Documento?", value: v.temDocumento ? "Sim" : "Não" }
+  ];
 
   if (serviceInfo.length > 0) {
     doc.setFont("helvetica", "bold");
@@ -512,10 +517,17 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
   const obsText = obsParts.join("\n\n");
   
   if (obsText) {
+    // Garantir página nova se não houver espaço
     if (y > pageH - margin - 60) {
       doc.addPage();
       y = margin + 6;
     }
+    
+    // Separador antes
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, pageW - margin, y);
+    y += 4;
     
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
@@ -526,12 +538,18 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(0, 0, 0);
-    const lines = doc.splitTextToSize(obsText.replace(/\s+/g, " ").trim(), pageW - margin * 2 - 2);
-    const toPrint = lines.slice(0, Math.min(6, lines.length));
+    const lines = doc.splitTextToSize(obsText.replace(/\s+/g, " ").trim(), pageW - margin * 2 - 4);
+    const toPrint = lines.slice(0, Math.min(8, lines.length));
     for (let idx = 0; idx < toPrint.length; idx++) {
-      doc.text(toPrint[idx], margin + 1, y + idx * 2.8);
+      doc.text(toPrint[idx], margin + 1, y + idx * 3);
     }
-    y += toPrint.length * 2.8 + 2;
+    y += toPrint.length * 3 + 4;
+    
+    // Separador depois
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, pageW - margin, y);
+    y += 4;
   }
 
   // ASSINATURAS
@@ -546,27 +564,33 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
   doc.text("ASSINATURAS E DECLARACOES", margin, y);
   y += 9;
 
-  // ========== CLIENTE ==========
+  // ========== COLETOR ==========
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
-  doc.text("CLIENTE", margin, y);
+  doc.text("COLETOR", margin, y);
   y += 5;
   
-  // Declaração do Cliente
+  // Declaração do Coletor
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(60, 60, 60);
-  const clientDecl = "Declaro estar de acordo e concordo com as informacoes registradas nesta ficha de vistoria.";
+  const clientDecl = "Declaro estar de acordo e concordo com todas as informacoes registradas nesta ficha de vistoria. Assumo total responsabilidade pelos dados fornecidos e reconheço a precisao desta vistoria.";
   const clientDeclLines = doc.splitTextToSize(clientDecl, pageW - margin * 2 - 2);
   for (let cdIdx = 0; cdIdx < clientDeclLines.length; cdIdx++) {
     doc.text(clientDeclLines[cdIdx], margin + 1, y + cdIdx * 3.5);
   }
   y += clientDeclLines.length * 3.5 + 4;
 
-  // Caixa de assinatura Cliente
+  // Caixa de assinatura Coletor
   const sigW = (pageW - margin * 2) / 2 - 1;
   const sigH = 22;
+  
+  // Fundo branco para a assinatura
+  doc.setFillColor(255, 255, 255);
+  doc.rect(margin, y, sigW, sigH, "F");
+  
+  // Borda da caixa
   doc.setDrawColor(150, 150, 150);
   doc.setLineWidth(0.4);
   doc.rect(margin, y, sigW, sigH);
@@ -580,7 +604,7 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
   
   y += sigH + 3;
   
-  // Linha e nome Cliente + CPF
+  // Linha e nome Coletor + CPF
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(0, 0, 0);
@@ -597,7 +621,7 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
   y += 3;
   doc.setFontSize(7.5);
   doc.setTextColor(100, 100, 100);
-  doc.text("Assinatura do Cliente", margin, y);
+  doc.text("Assinatura do Coletor", margin, y);
   
   y += 10;
 
@@ -612,7 +636,7 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(60, 60, 60);
-  const recvDecl = "Declaro ter recebido o veiculo de acordo com as informacoes registradas nesta ficha de vistoria.";
+  const recvDecl = "Declaro ter recebido o veiculo em conformidade com as informacoes registradas nesta ficha de vistoria. Assumo total responsabilidade pela integridade do veiculo a partir desta data e hora.";
   const recvDeclLines = doc.splitTextToSize(recvDecl, pageW - margin * 2 - 2);
   for (let rdIdx = 0; rdIdx < recvDeclLines.length; rdIdx++) {
     doc.text(recvDeclLines[rdIdx], margin + 1, y + rdIdx * 3.5);
@@ -625,6 +649,11 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
     y = margin + 6;
   }
   
+  // Fundo branco para a assinatura
+  doc.setFillColor(255, 255, 255);
+  doc.rect(margin, y, sigW, sigH, "F");
+  
+  // Borda da caixa
   doc.setDrawColor(150, 150, 150);
   doc.setLineWidth(0.4);
   doc.rect(margin, y, sigW, sigH);
@@ -744,19 +773,50 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
       doc.text(`Foto ${fotoNumber}:`, fotoX, fotoY + fotoH + 2);
       
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
+      doc.setFontSize(6.5);
       doc.setTextColor(60, 60, 60);
       const descLines = doc.splitTextToSize(fotoLabel, fotoW - 2);
-      for (let dIdx = 0; dIdx < descLines.length && dIdx < 2; dIdx++) {
-        doc.text(descLines[dIdx], fotoX + 0.5, fotoY + fotoH + 5 + dIdx * 2.5);
+      for (let dIdx = 0; dIdx < descLines.length && dIdx < 3; dIdx++) {
+        doc.text(descLines[dIdx], fotoX + 0.5, fotoY + fotoH + 5 + dIdx * 2.3);
       }
       
       fotoCount++;
     }
   }
+
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
+    
+    // ========== AVISO IMPORTANTE NO RODAPÉ (A PARTIR DA PÁGINA 2) ==========
+    if (i > 1) {
+      const avisoY = pageH - margin - 22;
+      
+      // Separador antes
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.2);
+      doc.line(margin, avisoY, pageW - margin, avisoY);
+      
+      let currentY = avisoY + 4;
+      
+      // Texto de aviso
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(220, 53, 69); // Cor de destaque (vermelho)
+      doc.text("ATENÇÃO", margin, currentY);
+      
+      currentY += 4;
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(60, 60, 60);
+      const avisoText = "Não nos responsabilizamos por pertences no interior do veículo. Não nos responsabilizamos por objetos que não estejam relacionados nesta vistoria.";
+      const avisoLines = doc.splitTextToSize(avisoText, pageW - margin * 2 - 2);
+      for (let avisoIdx = 0; avisoIdx < avisoLines.length; avisoIdx++) {
+        doc.text(avisoLines[avisoIdx], margin + 1, currentY + avisoIdx * 2.8);
+      }
+    }
+    
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
     doc.text(`Grupo H Guinchos • Página ${i} de ${totalPages}`, pageW / 2, pageH - 3, { align: "center" });

@@ -102,6 +102,7 @@ export interface Vistoria {
   };
   videoSeguranca: string | null;
   vistoriaSalva: boolean;
+  status: 'rascunho' | 'completa'; // rascunho: em andamento, completa: finalizada
   pdfBase64?: string;
   criadoEm: string;
   atualizadoEm: string;
@@ -209,6 +210,7 @@ export const createEmptyVistoria = (numero: string): Vistoria => ({
   },
   videoSeguranca: null,
   vistoriaSalva: false,
+  status: 'rascunho',
   criadoEm: new Date().toISOString(),
   atualizadoEm: new Date().toISOString(),
 });

@@ -12,6 +12,8 @@ interface CardVistoriaProps {
 export function CardVistoria({ vistoria, onView, onGeneratePDF, onShare }: CardVistoriaProps) {
   const hasVideo = !!vistoria.videoSeguranca;
   const hasPhotos = vistoria.fotos && vistoria.fotos.length > 0;
+  const isRascunho = vistoria.status === 'rascunho';
+  const isCompleta = vistoria.status === 'completa';
 
   const handleVideoClick = () => {
     if (hasVideo && vistoria.videoSeguranca) {
@@ -66,9 +68,16 @@ export function CardVistoria({ vistoria, onView, onGeneratePDF, onShare }: CardV
     <div className="card-vistoria animate-fade-in">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-lg font-bold text-foreground">
-            Vistoria #{vistoria.numero}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold text-foreground">
+              Vistoria #{vistoria.numero}
+            </h3>
+            {isRascunho && (
+              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
+                RASCUNHO
+              </span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             {vistoria.segurado || "Sem nome"}
           </p>
@@ -99,6 +108,8 @@ export function CardVistoria({ vistoria, onView, onGeneratePDF, onShare }: CardV
             variant="outline"
             size="sm"
             onClick={onGeneratePDF}
+            disabled={isRascunho}
+            title={isRascunho ? "Finalize a vistoria para gerar PDF" : "Gerar PDF"}
             className="flex-1 h-10"
           >
             <FileText className="w-4 h-4 mr-1" />
@@ -108,6 +119,8 @@ export function CardVistoria({ vistoria, onView, onGeneratePDF, onShare }: CardV
             variant="outline"
             size="sm"
             onClick={onShare}
+            disabled={isRascunho}
+            title={isRascunho ? "Finalize a vistoria para enviar" : "Enviar vistoria"}
             className="flex-1 h-10"
           >
             <Share2 className="w-4 h-4 mr-1" />
@@ -118,8 +131,9 @@ export function CardVistoria({ vistoria, onView, onGeneratePDF, onShare }: CardV
               variant="outline"
               size="sm"
               onClick={handleDownloadPhotos}
+              disabled={isRascunho}
               className="flex-1 h-10"
-              title={`Download de ${vistoria.fotos?.length || 0} foto(s)`}
+              title={isRascunho ? "Finalize a vistoria para baixar fotos" : `Download de ${vistoria.fotos?.length || 0} foto(s)`}
             >
               <Image className="w-4 h-4 mr-1" />
               <span className="hidden sm:inline">Fotos</span>
@@ -130,8 +144,9 @@ export function CardVistoria({ vistoria, onView, onGeneratePDF, onShare }: CardV
               variant="outline"
               size="sm"
               onClick={handleVideoClick}
+              disabled={isRascunho}
               className="flex-1 h-10"
-              title="Download do vídeo de segurança"
+              title={isRascunho ? "Finalize a vistoria para baixar vídeo" : "Download do vídeo de segurança"}
             >
               <Video className="w-4 h-4 mr-1" />
               <span className="hidden sm:inline">Vídeo</span>
@@ -142,8 +157,9 @@ export function CardVistoria({ vistoria, onView, onGeneratePDF, onShare }: CardV
           onClick={onView}
           size="sm"
           className="w-full h-11"
+          variant={isRascunho ? "default" : "outline"}
         >
-          Ver Ficha
+          {isRascunho ? "Continuar Preenchendo" : "Ver Ficha"}
           <ChevronRight className="w-4 h-4 ml-1" />
         </Button>
       </div>

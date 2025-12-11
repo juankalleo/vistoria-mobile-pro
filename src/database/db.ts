@@ -64,9 +64,26 @@ export async function saveVistoria(vistoria: Vistoria): Promise<void> {
   vistoria.atualizadoEm = new Date().toISOString();
   // normaliza a placa antes de salvar (novo formato LLLNLNN)
   vistoria.placa = normalizePlate(vistoria.placa || '');
+  // Define como completa (salva de verdade)
+  vistoria.status = 'completa';
+  vistoria.vistoriaSalva = true;
   await database.put('vistorias', vistoria);
-  // Incrementa o número APÓS salvar com sucesso
+  // Incrementa o número APENAS quando salva com sucesso
   await incrementVistoriaNumber();
+}
+
+export async function saveRascunhoVistoria(vistoria: Vistoria): Promise<void> {
+  const database = await getDB();
+  // ensure id exists so record is stored/retrievable reliably
+  if (!vistoria.id) vistoria.id = uuidv4();
+  vistoria.atualizadoEm = new Date().toISOString();
+  // normaliza a placa antes de salvar (novo formato LLLNLNN)
+  vistoria.placa = normalizePlate(vistoria.placa || '');
+  // Define como rascunho (ainda em andamento)
+  vistoria.status = 'rascunho';
+  vistoria.vistoriaSalva = false;
+  await database.put('vistorias', vistoria);
+  // NÃO incrementa o número quando salva rascunho
 }
 
 export async function getVistoria(id: string): Promise<Vistoria | undefined> {
@@ -89,9 +106,16 @@ export async function getAllVistorias(): Promise<Vistoria[]> {
     }
   }
   
-  // Retornar apenas as não deletadas
+  // Retornar apenas as não deletadas com migração de status
   const vistoriasAtualizadas = await database.getAllFromIndex('vistorias', 'by-date');
-  return vistoriasAtualizadas.reverse(); // Most recent first
+  
+  // Aplicar migração de status para vistorias antigas
+  const vistoriasComMigracao = vistoriasAtualizadas.map(v => ({
+    ...v,
+    status: v.status || (v.vistoriaSalva ? 'completa' : 'rascunho'),
+  }));
+  
+  return vistoriasComMigracao.reverse(); // Most recent first
 }
 
 export async function deleteVistoria(id: string): Promise<void> {

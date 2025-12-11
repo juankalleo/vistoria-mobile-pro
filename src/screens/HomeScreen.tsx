@@ -26,9 +26,8 @@ export function HomeScreen() {
   const loadVistorias = async () => {
     try {
       const data = await getAllVistorias();
-      // Filtrar apenas vistorias salvas
-      const vistoriasSalvas = data.filter((v) => v.vistoriaSalva === true);
-      setVistorias(vistoriasSalvas);
+      // Mostra todas as vistorias (rascunhos + completas)
+      setVistorias(data);
     } catch (error) {
       console.error("Erro ao carregar vistorias:", error);
     } finally {
@@ -227,16 +226,60 @@ export function HomeScreen() {
         {loading ? (
           <div className="text-center py-12 text-muted-foreground">Carregando...</div>
         ) : filteredVistorias.length > 0 ? (
-          <div className="space-y-4">
-            {filteredVistorias.map((vistoria) => (
-              <CardVistoria
-                key={vistoria.id}
-                vistoria={vistoria}
-                onView={() => handleView(vistoria)}
-                onGeneratePDF={() => handleGeneratePDF(vistoria)}
-                onShare={() => handleShare(vistoria)}
-              />
-            ))}
+          <div className="space-y-6">
+            {/* RASCUNHOS - Em Andamento */}
+            {(() => {
+              const rascunhos = filteredVistorias.filter((v) => v.status === 'rascunho');
+              if (rascunhos.length > 0) {
+                return (
+                  <div>
+                    <div className="flex items-center mb-3">
+                      <h2 className="text-lg font-semibold text-yellow-600">📝 Em Andamento</h2>
+                      <span className="ml-2 text-sm text-muted-foreground">({rascunhos.length})</span>
+                    </div>
+                    <div className="space-y-3">
+                      {rascunhos.map((vistoria) => (
+                        <CardVistoria
+                          key={vistoria.id}
+                          vistoria={vistoria}
+                          onView={() => handleView(vistoria)}
+                          onGeneratePDF={() => handleGeneratePDF(vistoria)}
+                          onShare={() => handleShare(vistoria)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            {/* COMPLETAS - Finalizadas */}
+            {(() => {
+              const completas = filteredVistorias.filter((v) => v.status === 'completa');
+              if (completas.length > 0) {
+                return (
+                  <div>
+                    <div className="flex items-center mb-3">
+                      <h2 className="text-lg font-semibold text-green-600">✓ Finalizadas</h2>
+                      <span className="ml-2 text-sm text-muted-foreground">({completas.length})</span>
+                    </div>
+                    <div className="space-y-3">
+                      {completas.map((vistoria) => (
+                        <CardVistoria
+                          key={vistoria.id}
+                          vistoria={vistoria}
+                          onView={() => handleView(vistoria)}
+                          onGeneratePDF={() => handleGeneratePDF(vistoria)}
+                          onShare={() => handleShare(vistoria)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
         ) : (
           <div className="text-center py-16">

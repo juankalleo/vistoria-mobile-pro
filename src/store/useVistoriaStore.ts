@@ -45,10 +45,11 @@ export const useVistoriaStore = create<VistoriaStore>((set, get) => ({
   },
 
   loadVistoria: (vistoria: Vistoria) => {
-    // Migração: garantir que fotoTypes existe
+    // Migração: garantir que fotoTypes existe e status está definido
     const migratedVistoria = {
       ...vistoria,
       fotoTypes: vistoria.fotoTypes || vistoria.fotos.map(() => null),
+      status: vistoria.status || (vistoria.vistoriaSalva ? 'completa' : 'rascunho'),
     };
     set({ currentVistoria: migratedVistoria, activeTab: 0, isEditing: true });
   },
