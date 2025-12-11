@@ -45,7 +45,12 @@ export const useVistoriaStore = create<VistoriaStore>((set, get) => ({
   },
 
   loadVistoria: (vistoria: Vistoria) => {
-    set({ currentVistoria: vistoria, activeTab: 0, isEditing: true });
+    // Migração: garantir que fotoTypes existe
+    const migratedVistoria = {
+      ...vistoria,
+      fotoTypes: vistoria.fotoTypes || vistoria.fotos.map(() => null),
+    };
+    set({ currentVistoria: migratedVistoria, activeTab: 0, isEditing: true });
   },
 
   setActiveTab: (tab: number) => {
@@ -148,14 +153,20 @@ export const useVistoriaStore = create<VistoriaStore>((set, get) => ({
     if (!currentVistoria) return;
     
     const fotosObrigatorias = { ...currentVistoria.fotosObrigatorias };
+    const fotoTypes = [...currentVistoria.fotoTypes];
+    
     if (fotoType) {
       fotosObrigatorias[fotoType] = true;
+      fotoTypes.push(fotoType);
+    } else {
+      fotoTypes.push(null);
     }
     
     set({
       currentVistoria: {
         ...currentVistoria,
         fotos: [...currentVistoria.fotos, photoBase64],
+        fotoTypes,
         fotosObrigatorias,
       },
     });
@@ -165,11 +176,24 @@ export const useVistoriaStore = create<VistoriaStore>((set, get) => ({
     const { currentVistoria } = get();
     if (!currentVistoria || currentVistoria.vistoriaSalva) return;
     const newFotos = [...currentVistoria.fotos];
+    const newFotoTypes = [...currentVistoria.fotoTypes];
+    const removedType = newFotoTypes[index];
+    
     newFotos.splice(index, 1);
+    newFotoTypes.splice(index, 1);
+    
+    // Se removeu uma foto de um tipo obrigatório, marcar como falso
+    const fotosObrigatorias = { ...currentVistoria.fotosObrigatorias };
+    if (removedType) {
+      fotosObrigatorias[removedType] = false;
+    }
+    
     set({
       currentVistoria: {
         ...currentVistoria,
         fotos: newFotos,
+        fotoTypes: newFotoTypes,
+        fotosObrigatorias,
       },
     });
   },
@@ -177,13 +201,28 @@ export const useVistoriaStore = create<VistoriaStore>((set, get) => ({
   markPhotoAsType: (index, fotoType) => {
     const { currentVistoria } = get();
     if (!currentVistoria) return;
+    
+    const newFotoTypes = [...currentVistoria.fotoTypes];
+    const oldType = newFotoTypes[index];
+    newFotoTypes[index] = fotoType;
+    
+    // Atualizar fotosObrigatorias
+    const fotosObrigatorias = { ...currentVistoria.fotosObrigatorias };
+    fotosObrigatorias[fotoType] = true;
+    
+    // Se tinha um tipo anterior, remover se não houver mais fotos desse tipo
+    if (oldType && oldType !== fotoType) {
+      const hasAnotherOfOldType = newFotoTypes.some(t => t === oldType);
+      if (!hasAnotherOfOldType) {
+        fotosObrigatorias[oldType] = false;
+      }
+    }
+    
     set({
       currentVistoria: {
         ...currentVistoria,
-        fotosObrigatorias: {
-          ...currentVistoria.fotosObrigatorias,
-          [fotoType]: true,
-        },
+        fotoTypes: newFotoTypes,
+        fotosObrigatorias,
       },
     });
   },

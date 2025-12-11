@@ -44,15 +44,54 @@ function detectImageFormat(dataUrl?: string): string {
   return m ? m[1].toUpperCase() : "PNG";
 }
 
+async function fixImageOrientation(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+
+        // Desenha a imagem normalmente - o navegador respeita EXIF automaticamente
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        resolve(canvas.toDataURL('image/jpeg', 0.95));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch {
+      resolve(dataUrl);
+    }
+  });
+}
+
 async function addImageAuto(doc: jsPDF, image: string, x: number, y: number, w: number, h: number) {
   if (!image) return false;
+  
+  let imageToAdd = image;
+  
   if (image.startsWith("data:")) {
-    try { doc.addImage(image, detectImageFormat(image) as any, x, y, w, h); return true; } catch { /* fallthrough */ }
+    try { 
+      // Corrigir orientação passando pela canvas
+      imageToAdd = await fixImageOrientation(image);
+      doc.addImage(imageToAdd, detectImageFormat(imageToAdd) as any, x, y, w, h); 
+      return true; 
+    } catch { /* fallthrough */ }
   }
   if (/^https?:\/\//i.test(image) || image.startsWith("/")) {
     const data = await fetchImageAsDataUrl(image);
     if (data) {
-      try { doc.addImage(data, detectImageFormat(data) as any, x, y, w, h); return true; } catch { /* fallthrough */ }
+      try { 
+        imageToAdd = await fixImageOrientation(data);
+        doc.addImage(imageToAdd, detectImageFormat(imageToAdd) as any, x, y, w, h); 
+        return true; 
+      } catch { /* fallthrough */ }
     }
   }
   try { (doc as any).addImage(image, x, y, w, h); return true; } catch { return false; }
@@ -182,6 +221,56 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
   
   y += Math.ceil(infoCompact.length / 2) * 5.5 + 2;
 
+  // SERVIÇOS E MOTIVOS
+  const serviceInfo = [
+    { label: "Tipo de Serviço", value: normalizeText(v.tipoServico || "-") },
+    { label: "Motivo da Chamada", value: normalizeText(v.motivoChamada || "-") },
+    { label: "Especificação", value: normalizeText(v.motivoOutro || "-") },
+    { label: "Tipo de Veículo", value: normalizeText(v.tipoVeiculo || "-") },
+    { label: "Condição dos Pneus", value: normalizeText(v.condicaoPneus || "-") },
+    { label: "Nível Combustível", value: normalizeText(v.nivelCombustivel || "-") }
+  ].filter(item => item.value !== "-");
+
+  if (serviceInfo.length > 0) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(15, 76, 129);
+    doc.text("SERVICOS E MOTIVOS", margin, y);
+    y += 4;
+
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const colWidth = (pageWidth - margin * 2) / 2;
+    
+    for (let i = 0; i < serviceInfo.length; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = margin + col * colWidth;
+      const itemY = y + row * 4.5;
+      
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 76, 129);
+      
+      const labelWidth = 32;
+      const maxValueWidth = colWidth - labelWidth - 2;
+      
+      doc.text(serviceInfo[i].label, x, itemY);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+      
+      const valueLines = doc.splitTextToSize(serviceInfo[i].value, maxValueWidth);
+      doc.text(valueLines[0] || "-", x + labelWidth, itemY);
+    }
+    
+    y += Math.ceil(serviceInfo.length / 2) * 4.5 + 3;
+  }
+
+  y += 2; // Espaço adicional antes da segurança
+
   // ITENS DE SEGURANÇA - Cards compactos e pequenos
   const itensSeguranca = v.itensSeguranca || {};
   const segurancaItems = [
@@ -230,8 +319,121 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
   }
   
   y += 8;
+  
+  y += 3; // Espaço adicional antes da inspeção
+  
+  // INSPEÇÃO DO VEÍCULO - Dados completos
+  const carro = v.dadosCarro || {};
+  
+  // Contar itens com status S, N, I, A
+  const contarStatus = (status: string) => {
+    return Object.values(carro).filter(v => v === status).length;
+  };
+  
+  const countS = contarStatus("S");
+  const countN = contarStatus("N");
+  const countI = contarStatus("I");
+  const countA = contarStatus("A");
 
-  // ITENS AUSENTES / AVARIAS — se houver
+  if (Object.keys(carro).length > 0) {
+    // Resumo compacto de status
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(15, 76, 129);
+    doc.text("INSPECAO DO VEICULO", margin, y);
+    y += 3.5;
+
+    // Estatísticas em linha
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    const statsText = `OK: ${countS} | DANOS: ${countN} | INSPECIONAVEL: ${countI} | AVARIAS: ${countA}`;
+    doc.text(statsText, margin, y);
+    y += 4;
+
+    // Tabela de inspeção - linhas com 3 colunas
+    doc.setFontSize(6.5);
+    const colWidth = (pageW - margin * 2) / 3 - 0.5;
+    let itemIndex = 0;
+    let currentRow = 0;
+
+    // Mapa de nomes para exibição
+    const carroLabels: { [key: string]: string } = {
+      farolDianteiro: "Farol Dianteiro",
+      farolTraseiro: "Farol Traseiro",
+      lanternaDianteira: "Lanterna Dianteira",
+      lanternaTraseira: "Lanterna Traseira",
+      paraChoqueDianteiro: "Para-choque Dianteiro",
+      paraChoqueTraseiro: "Para-choque Traseiro",
+      retrovisiorEsquerdo: "Retrovisor Esquerdo",
+      retrovisiorDireito: "Retrovisor Direito",
+      capo: "Capô",
+      portaMalas: "Porta-malas",
+      portaDianteiraEsquerda: "Porta Diant. Esq.",
+      portaDianteiraDireita: "Porta Diant. Dir.",
+      portaTraseiraEsquerda: "Porta Tras. Esq.",
+      portaTraseiraDireita: "Porta Tras. Dir.",
+      painelDianteiro: "Painel Dianteiro",
+      painelTraseiro: "Painel Traseiro",
+      vidroParabrisaDianteiro: "Para-brisa Dianteiro",
+      vidroParabrisaTraseiro: "Para-brisa Traseiro",
+      vidroLateralDianteiroEsquerdo: "Vidro Lat. D. Esq.",
+      vidroLateralDianteiroDireito: "Vidro Lat. D. Dir.",
+      vidroLateralTraseiroEsquerdo: "Vidro Lat. T. Esq.",
+      vidroLateralTraseiroDireito: "Vidro Lat. T. Dir.",
+      paraLamaDianteiroEsquerdo: "Para-lama D. Esq.",
+      paraLamaDianteiroDireito: "Para-lama D. Dir.",
+      paraLamaTraseiroEsquerdo: "Para-lama T. Esq.",
+      paraLamaTraseiroDireito: "Para-lama T. Dir.",
+      rodaDianteiraEsquerda: "Roda D. Esq.",
+      rodaDianteiraDireita: "Roda D. Dir.",
+      rodaTraseiraEsquerda: "Roda T. Esq.",
+      rodaTraseiraDireita: "Roda T. Dir.",
+      pneuDianteiroEsquerdo: "Pneu D. Esq.",
+      pneuDianteiraDireito: "Pneu D. Dir.",
+      pneuTraseiroEsquerdo: "Pneu T. Esq.",
+      pneuTraseiroDireito: "Pneu T. Dir."
+    };
+
+    const carroItems = Object.entries(carro)
+      .filter(([_, val]) => val !== null && val !== undefined)
+      .map(([key, val]) => ({
+        label: carroLabels[key] || formatLabel(key),
+        status: val
+      }));
+
+    // Desenhar itens em tabela
+    for (const item of carroItems) {
+      const col = itemIndex % 3;
+      const row = Math.floor(itemIndex / 3);
+      const itemX = margin + col * (colWidth + 0.5);
+      const itemY = y + currentRow * 4;
+
+      // Cor de fundo baseada no status
+      let bgColor = [240, 240, 240];
+      if (item.status === "S") bgColor = [200, 245, 200];
+      if (item.status === "N") bgColor = [255, 200, 200];
+      if (item.status === "I") bgColor = [255, 240, 200];
+      if (item.status === "A") bgColor = [200, 230, 255];
+
+      doc.setFillColor(...bgColor);
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.1);
+      doc.rect(itemX, itemY, colWidth, 3.5, "F");
+
+      // Texto
+      doc.setFont("helvetica", "normal");
+      const statusMap: { [key: string]: string } = { S: "OK", N: "DANO", I: "INSP.", A: "AVAR." };
+      const displayStatus = statusMap[item.status as string] || item.status;
+      doc.text(`${item.label} [${displayStatus}]`, itemX + 0.5, itemY + 2.5);
+
+      itemIndex++;
+      if (col === 2) currentRow++;
+    }
+
+    y += Math.ceil(itemIndex / 3) * 4 + 4;
+  }
+
+  y += 2; // Espaço adicional antes de observações
   const hasIssues = v.itensAusentes || v.possuiAvarias;
   if (hasIssues) {
     // Separador antes da seção
@@ -299,77 +501,6 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
     doc.setTextColor(255, 255, 255);
     doc.text("VIDEO DE SEGURANCA GRAVADO", pageW / 2, y + 3.5, { align: "center" });
     y += 8;
-  }
-
-  // FOTOS DA VISTORIA
-  const vistoFotos = v.fotos || [];
-  const vistoFotoTypes = v.fotosObrigatorias || {};
-  const vistoFotoTypeLabels: { [key: string]: string } = {
-    veiculoNoLocal: "No Local",
-    veiculoNoGabarito: "No Gabarito",
-    veiculoEntregue: "Entregue"
-  };
-
-  if (vistoFotos.length > 0) {
-    if (y > pageH - margin - 80) {
-      doc.addPage();
-      y = margin + 6;
-    }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(15, 76, 129);
-    doc.text("FOTOS", margin, y);
-    y += 5;
-
-    const fotoW = (pageW - margin * 2) / 2 - 1;
-    const fotoH = 35;
-    let fotoCount = 0;
-
-    for (let fi = 0; fi < vistoFotos.length && fotoCount < 5; fi++) {
-      const fotoCol = fotoCount % 2;
-      const fotoRow = Math.floor(fotoCount / 2);
-      const fotoX = margin + fotoCol * (fotoW + 2);
-      const fotoY = y + fotoRow * (fotoH + 11);
-
-      if (fotoY + fotoH + 10 > pageH - margin) {
-        doc.addPage();
-        y = margin + 6;
-        fotoCount = 0;
-        fi--;
-        continue;
-      }
-
-      // Borda da foto
-      doc.setDrawColor(180, 180, 180);
-      doc.setLineWidth(0.3);
-      doc.rect(fotoX, fotoY, fotoW, fotoH);
-
-      // Imagem
-      try {
-        await addImageAuto(doc, vistoFotos[fi], fotoX + 0.5, fotoY + 0.5, fotoW - 1, fotoH - 1);
-      } catch {
-        // vazio
-      }
-
-      // Label
-      let fotoLabel = "Foto";
-      for (const [typeKey, typeValue] of Object.entries(vistoFotoTypes)) {
-        if (typeValue === vistoFotos[fi]) {
-          fotoLabel = vistoFotoTypeLabels[typeKey] || "Foto";
-          break;
-        }
-      }
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.setTextColor(100, 100, 100);
-      doc.text(fotoLabel, fotoX + 1, fotoY + fotoH + 2.5);
-      
-      fotoCount++;
-    }
-
-    y = y + Math.ceil(fotoCount / 2) * (fotoH + 11) + 2;
   }
 
   // OBSERVAÇÕES
@@ -526,7 +657,103 @@ export async function generateVistoriaPdf(v: Vistoria, opts: { autoSave?: boolea
   doc.setTextColor(100, 100, 100);
   doc.text("Assinatura do Destinatario", margin, y);
 
-  // RODAPÉ COM NÚMERO DE PÁGINAS
+  // ========== FOTOS DA VISTORIA (APÓS ASSINATURAS) ==========
+  const vistoFotos = v.fotos || [];
+  let fotoTypes = v.fotoTypes || [];
+  
+  // Se fotoTypes está vazio (dados legados), tentar reconstruir
+  if (fotoTypes.length === 0 && vistoFotos.length > 0) {
+    fotoTypes = vistoFotos.map(() => null);
+  }
+  
+  // Mapas de descrição detalhada das fotos
+  const fotoTypeLabels: { [key: string]: string } = {
+    veiculoNoLocal: "Veículo no Local (Momento da Chamada)",
+    veiculoNoGabarito: "Veículo no Guincho (Transporte)",
+    veiculoEntregue: "Veículo na Entrega (Destino)"
+  };
+
+  if (vistoFotos.length > 0) {
+    // Sempre adicionar página nova para fotos, garantindo separação clara
+    doc.addPage();
+    y = margin + 8;
+
+    // Títulão da seção de fotos
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(15, 76, 129);
+    doc.text("DOCUMENTACAO FOTOGRAFICA", margin, y);
+    y += 8;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(80, 80, 80);
+    const fotoIntroText = `Total de ${vistoFotos.length} foto(s) registrada(s) nesta vistoria`;
+    doc.text(fotoIntroText, margin, y);
+    y += 6;
+
+    // Exibir fotos
+    const fotoW = (pageW - margin * 2) / 2 - 1;
+    const fotoH = 40;
+    let fotoCount = 0;
+
+    for (let fi = 0; fi < vistoFotos.length; fi++) {
+      const fotoCol = fotoCount % 2;
+      const fotoRow = Math.floor(fotoCount / 2);
+      const fotoX = margin + fotoCol * (fotoW + 2);
+      const fotoY = y + fotoRow * (fotoH + 16);
+
+      // Verificar se precisa de nova página
+      if (fotoY + fotoH + 16 > pageH - margin) {
+        doc.addPage();
+        y = margin + 8;
+        fotoCount = 0;
+        fi--;
+        continue;
+      }
+
+      // Borda da foto com sombra
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.4);
+      doc.rect(fotoX, fotoY, fotoW, fotoH);
+
+      // Imagem
+      try {
+        await addImageAuto(doc, vistoFotos[fi], fotoX + 0.5, fotoY + 0.5, fotoW - 1, fotoH - 1);
+      } catch {
+        // Imagem não carregou
+        doc.setTextColor(200, 200, 200);
+        doc.setFontSize(10);
+        doc.text("Imagem", fotoX + fotoW / 2, fotoY + fotoH / 2, { align: "center" });
+      }
+
+      // Descrição detalhada embaixo da foto
+      const fotoType = fotoTypes[fi];
+      let fotoLabel = "Foto Não Classificada";
+      
+      if (fotoType && fotoTypeLabels[fotoType]) {
+        fotoLabel = fotoTypeLabels[fotoType];
+      }
+
+      // Número da foto + índice
+      const fotoNumber = fi + 1;
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(15, 76, 129);
+      doc.text(`Foto ${fotoNumber}:`, fotoX, fotoY + fotoH + 2);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(60, 60, 60);
+      const descLines = doc.splitTextToSize(fotoLabel, fotoW - 2);
+      for (let dIdx = 0; dIdx < descLines.length && dIdx < 2; dIdx++) {
+        doc.text(descLines[dIdx], fotoX + 0.5, fotoY + fotoH + 5 + dIdx * 2.5);
+      }
+      
+      fotoCount++;
+    }
+  }
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);

@@ -94,6 +94,7 @@ export interface Vistoria {
   declaracaoEntrega: Assinatura;
   declaracaoRecebimento: Assinatura;
   fotos: string[];
+  fotoTypes: (('veiculoNoLocal' | 'veiculoNoGabarito' | 'veiculoEntregue') | null)[];
   fotosObrigatorias: {
     veiculoNoLocal: boolean;
     veiculoNoGabarito: boolean;
@@ -200,6 +201,7 @@ export const createEmptyVistoria = (numero: string): Vistoria => ({
   declaracaoEntrega: { ...defaultAssinatura },
   declaracaoRecebimento: { ...defaultAssinatura },
   fotos: [],
+  fotoTypes: [],
   fotosObrigatorias: {
     veiculoNoLocal: false,
     veiculoNoGabarito: false,

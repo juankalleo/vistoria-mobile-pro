@@ -37,6 +37,129 @@ export function FormScreen() {
 	}
 
 	const handleSave = async () => {
+		// Validar informações gerais (primeira aba)
+		if (!currentVistoria.veiculo?.trim()) {
+			toast({
+				title: "Dados incompletos",
+				description: "Preencha o Veículo na aba Info.",
+				variant: "destructive",
+			});
+			setActiveTab(0);
+			return;
+		}
+
+		if (!currentVistoria.placa?.trim()) {
+			toast({
+				title: "Dados incompletos",
+				description: "Preencha a Placa na aba Info.",
+				variant: "destructive",
+			});
+			setActiveTab(0);
+			return;
+		}
+
+		if (!currentVistoria.seguradora?.trim()) {
+			toast({
+				title: "Dados incompletos",
+				description: "Preencha a Seguradora na aba Info.",
+				variant: "destructive",
+			});
+			setActiveTab(0);
+			return;
+		}
+
+		if (!currentVistoria.segurado?.trim()) {
+			toast({
+				title: "Dados incompletos",
+				description: "Preencha o Segurado na aba Info.",
+				variant: "destructive",
+			});
+			setActiveTab(0);
+			return;
+		}
+
+		if (!currentVistoria.telefone?.trim()) {
+			toast({
+				title: "Dados incompletos",
+				description: "Preencha o Telefone na aba Info.",
+				variant: "destructive",
+			});
+			setActiveTab(0);
+			return;
+		}
+
+		// Validar serviços (segunda aba)
+		if (!currentVistoria.tipoServico?.trim()) {
+			toast({
+				title: "Dados incompletos",
+				description: "Preencha o Tipo de Serviço na aba Serviços.",
+				variant: "destructive",
+			});
+			setActiveTab(1);
+			return;
+		}
+
+		// Validar assinaturas (aba Declarações)
+		if (!currentVistoria.declaracaoEntrega?.assinaturaBase64?.trim()) {
+			toast({
+				title: "Assinatura obrigatória",
+				description: "Assine na aba Declarações (Cliente).",
+				variant: "destructive",
+			});
+			setActiveTab(5);
+			return;
+		}
+
+		if (!currentVistoria.declaracaoEntrega?.nome?.trim()) {
+			toast({
+				title: "Nome obrigatório",
+				description: "Preencha o Nome do Cliente na aba Declarações.",
+				variant: "destructive",
+			});
+			setActiveTab(5);
+			return;
+		}
+
+		if (!currentVistoria.declaracaoEntrega?.cpf?.trim()) {
+			toast({
+				title: "CPF obrigatório",
+				description: "Preencha o CPF do Cliente na aba Declarações.",
+				variant: "destructive",
+			});
+			setActiveTab(5);
+			return;
+		}
+
+		if (!currentVistoria.declaracaoRecebimento?.assinaturaBase64?.trim()) {
+			toast({
+				title: "Assinatura obrigatória",
+				description: "Assine na aba Declarações (Destinatário).",
+				variant: "destructive",
+			});
+			setActiveTab(5);
+			return;
+		}
+
+		if (!currentVistoria.declaracaoRecebimento?.nome?.trim()) {
+			toast({
+				title: "Nome obrigatório",
+				description: "Preencha o Nome do Destinatário na aba Declarações.",
+				variant: "destructive",
+			});
+			setActiveTab(5);
+			return;
+		}
+
+		if (!currentVistoria.declaracaoRecebimento?.cpf?.trim()) {
+			toast({
+				title: "CPF obrigatório",
+				description: "Preencha o CPF do Destinatário na aba Declarações.",
+				variant: "destructive",
+			});
+			setActiveTab(5);
+			return;
+		}
+
 		// Validar fotos obrigatórias
 		const { fotosObrigatorias } = currentVistoria;
 		if (!fotosObrigatorias.veiculoNoLocal || !fotosObrigatorias.veiculoNoGabarito || !fotosObrigatorias.veiculoEntregue) {
@@ -45,6 +168,12 @@ export function FormScreen() {
 				description: "É necessário adicionar as 3 fotos obrigatórias antes de salvar.",
 				variant: "destructive",
 			});
+			setActiveTab(6);
+			return;
+		}
+
+		// Pedir confirmação antes de salvar
+		if (!window.confirm("Deseja salvar esta vistoria? Após salvar, não poderá editar os dados.")) {
 			return;
 		}
 
@@ -69,10 +198,24 @@ export function FormScreen() {
 		}
 	};
 
+	const allRequiredPhotosComplete = 
+		currentVistoria.fotosObrigatorias.veiculoNoLocal &&
+		currentVistoria.fotosObrigatorias.veiculoNoGabarito &&
+		currentVistoria.fotosObrigatorias.veiculoEntregue;
+
 	const handleBack = () => {
 		if (window.confirm("Deseja voltar?")) {
 			reset();
 			navigate("/");
+		}
+	};
+
+	const handleNext = () => {
+		// Se estiver na última aba (Fotos) e todas as fotos obrigatórias estão completas
+		if (activeTab === tabs.length - 1 && allRequiredPhotosComplete) {
+			handleSave();
+		} else {
+			setActiveTab(Math.min(tabs.length - 1, activeTab + 1));
 		}
 	};
 
@@ -148,8 +291,20 @@ export function FormScreen() {
 					<Button onClick={() => setActiveTab(Math.max(0, activeTab - 1))} disabled={activeTab === 0} variant="outline" className="flex-1 h-12">
 						<ChevronLeft className="w-5 h-5 mr-1" /> Anterior
 					</Button>
-					<Button onClick={() => setActiveTab(Math.min(tabs.length - 1, activeTab + 1))} disabled={activeTab === tabs.length - 1} className="flex-1 h-12">
-						Próximo <ChevronRight className="w-5 h-5 ml-1" />
+					<Button 
+						onClick={handleNext} 
+						disabled={activeTab === tabs.length - 1 && !allRequiredPhotosComplete} 
+						className="flex-1 h-12"
+					>
+						{activeTab === tabs.length - 1 && allRequiredPhotosComplete ? (
+							<>
+								<Save className="w-5 h-5 mr-1" /> Salvar Vistoria
+							</>
+						) : (
+							<>
+								Próximo <ChevronRight className="w-5 h-5 ml-1" />
+							</>
+						)}
 					</Button>
 				</div>
 			</footer>

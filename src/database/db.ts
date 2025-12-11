@@ -44,8 +44,17 @@ export async function getNextVistoriaNumber(): Promise<string> {
   const config = await database.get('config', 'lastNumber');
   const lastNumber = config?.value as number || 0;
   const nextNumber = lastNumber + 1;
-  await database.put('config', { key: 'lastNumber', value: nextNumber });
+  // NÃO incrementa aqui - apenas retorna qual seria o próximo
   return String(nextNumber).padStart(6, '0');
+}
+
+export async function incrementVistoriaNumber(): Promise<void> {
+  const database = await getDB();
+  const config = await database.get('config', 'lastNumber');
+  const lastNumber = config?.value as number || 0;
+  const nextNumber = lastNumber + 1;
+  // Incrementa APENAS quando salva de verdade
+  await database.put('config', { key: 'lastNumber', value: nextNumber });
 }
 
 export async function saveVistoria(vistoria: Vistoria): Promise<void> {
@@ -56,6 +65,8 @@ export async function saveVistoria(vistoria: Vistoria): Promise<void> {
   // normaliza a placa antes de salvar (novo formato LLLNLNN)
   vistoria.placa = normalizePlate(vistoria.placa || '');
   await database.put('vistorias', vistoria);
+  // Incrementa o número APÓS salvar com sucesso
+  await incrementVistoriaNumber();
 }
 
 export async function getVistoria(id: string): Promise<Vistoria | undefined> {
@@ -66,12 +77,45 @@ export async function getVistoria(id: string): Promise<Vistoria | undefined> {
 export async function getAllVistorias(): Promise<Vistoria[]> {
   const database = await getDB();
   const vistorias = await database.getAllFromIndex('vistorias', 'by-date');
-  return vistorias.reverse(); // Most recent first
+  
+  // Deletar vistorias com mais de 30 dias
+  const agora = new Date();
+  const trintaDiasAtrás = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
+  
+  for (const vistoria of vistorias) {
+    const dataCriacao = new Date(vistoria.criadoEm);
+    if (dataCriacao < trintaDiasAtrás) {
+      await database.delete('vistorias', vistoria.id);
+    }
+  }
+  
+  // Retornar apenas as não deletadas
+  const vistoriasAtualizadas = await database.getAllFromIndex('vistorias', 'by-date');
+  return vistoriasAtualizadas.reverse(); // Most recent first
 }
 
 export async function deleteVistoria(id: string): Promise<void> {
   const database = await getDB();
   await database.delete('vistorias', id);
+}
+
+export async function cleanupOldVistorias(): Promise<number> {
+  const database = await getDB();
+  const vistorias = await database.getAllFromIndex('vistorias', 'by-date');
+  
+  const agora = new Date();
+  const trintaDiasAtrás = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
+  
+  let deletedCount = 0;
+  for (const vistoria of vistorias) {
+    const dataCriacao = new Date(vistoria.criadoEm);
+    if (dataCriacao < trintaDiasAtrás) {
+      await database.delete('vistorias', vistoria.id);
+      deletedCount++;
+    }
+  }
+  
+  return deletedCount;
 }
 
 export async function searchVistorias(query: string): Promise<Vistoria[]> {

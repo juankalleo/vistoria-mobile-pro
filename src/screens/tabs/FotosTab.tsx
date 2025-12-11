@@ -43,16 +43,16 @@ export function FotosTab() {
       }
 
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        addPhoto(result);
-        toast({
-          title: "Foto adicionada",
-          description: "Selecione o tipo de foto para classificá-la.",
-        });
-        setSelectedPhotoIndex(currentVistoria.fotos.length);
-      };
-      reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          addPhoto(result);
+          toast({
+            title: "Foto adicionada",
+            description: "Selecione o tipo de foto para classificá-la.",
+          });
+          setSelectedPhotoIndex(currentVistoria.fotos.length); // O novo índice após adicionar
+        };
+        reader.readAsDataURL(file);
     });
 
     // Reset input
@@ -237,17 +237,25 @@ export function FotosTab() {
             Classificar foto #{selectedPhotoIndex + 1}:
           </p>
           <div className="grid grid-cols-1 gap-2">
-            {requiredPhotos.map((photo) => (
-              <Button
-                key={photo.key}
-                variant={currentVistoria.fotosObrigatorias[photo.key] ? "secondary" : "outline"}
-                onClick={() => handleMarkPhotoType(photo.key)}
-                className="justify-start"
-                disabled={currentVistoria.fotosObrigatorias[photo.key]}
-              >
-                {photo.label}
-              </Button>
-            ))}
+            {requiredPhotos.map((photo) => {
+              const isCurrentPhotoType = currentVistoria.fotoTypes[selectedPhotoIndex] === photo.key;
+              const isTypeAlreadyUsed = currentVistoria.fotoTypes.some((t, idx) => t === photo.key && idx !== selectedPhotoIndex);
+              
+              return (
+                <Button
+                  key={photo.key}
+                  variant={isCurrentPhotoType ? "default" : "outline"}
+                  onClick={() => handleMarkPhotoType(photo.key)}
+                  className="justify-start"
+                  disabled={isTypeAlreadyUsed}
+                  title={isTypeAlreadyUsed ? "Este tipo já foi atribuído a outra foto" : ""}
+                >
+                  {photo.label}
+                  {isCurrentPhotoType && " ✓"}
+                </Button>
+              );
+            })}
+```
           </div>
           <Button
             variant="ghost"
@@ -283,11 +291,8 @@ export function FotosTab() {
                   index={index}
                   onRemove={() => removePhoto(index)}
                   canRemove={!isVistoriaSalva}
-                  isMarkedAsType={
-                    currentVistoria.fotosObrigatorias.veiculoNoLocal ||
-                    currentVistoria.fotosObrigatorias.veiculoNoGabarito ||
-                    currentVistoria.fotosObrigatorias.veiculoEntregue
-                  }
+                  fotoType={currentVistoria.fotoTypes?.[index]}
+                  isMarkedAsType={!!currentVistoria.fotoTypes?.[index]}
                 />
               </div>
             ))}
