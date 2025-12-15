@@ -14,183 +14,82 @@ Ao invés de usar um Node.js proxy separado, vamos usar **Supabase Edge Function
 
 ### 1. Criar a Edge Function
 
-Se ainda não existe, criar:
+A Edge Function já foi criada! O arquivo está em: `supabase/functions/send-verification-email/index.ts`
+
+Se precisar recriar (por algum motivo):
 
 ```powershell
 cd C:\Users\combo\Documents\projetos\vistoria-mobile-pro
 
-supabase functions new send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+# Usar npx (não precisa instalar globalmente)
+npx supabase functions new send-verification-email
 ```
-
-Isso cria: `supabase/functions/send-verification-email/index.ts`
 
 ### 2. Implementar a Função
 
-Abra `supabase/functions/send-verification-email/index.ts` e substitua o conteúdo:
+A função já está implementada e usa a biblioteca `resend` do npm. Veja o arquivo:
+`supabase/functions/send-verification-email/index.ts`
 
-```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const RESEND_FROM = Deno.env.get("RESEND_FROM_EMAIL") || "onboarding@resend.dev";
-
-serve(async (req) => {
-  // Handle CORS
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  // Apenas POST
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
-  }
-
-  try {
-    const { email, code, name } = await req.json();
-
-    // Validar entrada
-    if (!email || !code) {
-      return new Response(
-        JSON.stringify({ error: "Email e code são obrigatórios" }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-
-    // Validar API key
-    if (!RESEND_API_KEY) {
-      console.error("RESEND_API_KEY não configurada");
-      return new Response(
-        JSON.stringify({ error: "Email service não configurado" }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-
-    // Chamar Resend API
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: RESEND_FROM,
-        to: email,
-        subject: "Seu código de verificação - Vistoria Mobile",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h2 style="color: #1f3a8a; margin: 0;">Bem-vindo${name ? `, ${name}` : ""}! 👋</h2>
-              <p style="color: #666; margin-top: 10px;">Vistoria Mobile - Verificação Veicular</p>
-            </div>
-
-            <div style="background: linear-gradient(135deg, #1f3a8a 0%, #6366f1 100%); padding: 30px; border-radius: 12px; text-align: center; margin: 30px 0;">
-              <p style="color: white; margin: 0 0 10px; opacity: 0.9;">Seu código de verificação:</p>
-              <h1 style="letter-spacing: 8px; color: white; margin: 0; font-size: 48px; font-weight: bold;">${code}</h1>
-            </div>
-
-            <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0; color: #666; font-size: 14px;">
-                ⏱️ Este código expira em <strong>10 minutos</strong>
-              </p>
-              <p style="margin: 10px 0 0; color: #666; font-size: 14px;">
-                💡 Se não solicitou este código, ignore este email.
-              </p>
-            </div>
-
-            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-              <p style="color: #999; font-size: 12px; margin: 0;">
-                Vistoria Mobile v1.0 | Verificação Veicular Profissional
-              </p>
-            </div>
-          </div>
-        `,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Resend error:", data);
-      return new Response(
-        JSON.stringify({ error: data.message || "Erro ao enviar email" }),
-        { 
-          status: response.status, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-
-    console.log("Email enviado com sucesso:", data.id);
-    return new Response(
-      JSON.stringify({ success: true, id: data.id }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
-  } catch (error) {
-    console.error("Function error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "Erro interno" }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
-  }
-});
-```
+**Características:**
+- ✅ Usa a biblioteca `resend` (mais segura que raw fetch)
+- ✅ Template HTML profissional
+- ✅ Validação de entrada
+- ✅ Logs detalhados
+- ✅ Tratamento de erros
 
 ### 3. Criar arquivo CORS compartilhado
 
-Se não existe `supabase/functions/_shared/cors.ts`, criar:
-
-```typescript
-export const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-```
+✅ Já criado em: `supabase/functions/_shared/cors.ts`
 
 ### 4. Configurar Secrets
 
-```powershell
-# Configurar as variáveis de ambiente da Edge Function
-supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj `
-  RESEND_FROM_EMAIL=onboarding@resend.dev `
-  --project-ref ncnycfmhzpfjmmqzevaz
-```
+⚠️ **IMPORTANTE**: Você precisa configurar os secrets no **Supabase Dashboard**, não via CLI (que requer autenticação).
 
-**Saída esperada:**
-```
-✓ Secrets set for project ncnycfmhzpfjmmqzevaz
+#### Opção A: Via Dashboard (Recomendado)
+
+1. Acesse: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+2. Procure por "Functions" no menu lateral
+3. Clique em "send-verification-email"
+4. Procure a aba "Secrets" ou "Environment Variables"
+5. Adicione as variáveis:
+   - `RESEND_API_KEY` = `re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj`
+   - `RESEND_FROM_EMAIL` = `onboarding@resend.dev`
+
+#### Opção B: Via CLI (Requer Personal Access Token)
+
+```powershell
+# 1. Criar token pessoal em: https://app.supabase.com/account/tokens
+# 2. Configurar variável de ambiente
+$env:SUPABASE_ACCESS_TOKEN = "seu_token_pessoal_aqui"
+
+# 3. Configurar secrets
+npx supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj --project-ref ncnycfmhzpfjmmqzevaz
+npx supabase secrets set RESEND_FROM_EMAIL=onboarding@resend.dev --project-ref ncnycfmhzpfjmmqzevaz
+
+# 4. Verificar
+npx supabase secrets list --project-ref ncnycfmhzpfjmmqzevaz
 ```
 
 ### 5. Testar Localmente (Opcional)
 
 ```powershell
-# Iniciar Supabase localmente (se tiver banco local)
-supabase start --project-ref ncnycfmhzpfjmmqzevaz
+# Iniciar Supabase localmente
+npx supabase start
 
 # Em outro terminal, testar a função
-curl -X POST http://localhost:54321/functions/v1/send-verification-email \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer seu-token-aqui" \
+curl -X POST http://localhost:54321/functions/v1/send-verification-email `
+  -H "Content-Type: application/json" `
   -d '{"email": "seu-email@example.com", "code": "123456", "name": "Seu Nome"}'
+
+# Parar Supabase local
+npx supabase stop
 ```
 
 ### 6. Deploy da Edge Function
 
 ```powershell
-supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+# Com authentication token configurado
+npx supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
 ```
 
 **Saída esperada:**
@@ -198,16 +97,24 @@ supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqz
 ✓ Function 'send-verification-email' deployed successfully
 ```
 
+Se der erro de autenticação, você pode fazer o deploy via Supabase Dashboard:
+
+1. Vá para: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+2. Clique em "send-verification-email"
+3. Clique em "Deploy" ou "Publish"
+
 ### 7. Verificar Deploy
 
 ```powershell
-# Listar funções deployadas
-supabase functions list --project-ref ncnycfmhzpfjmmqzevaz
+# Listar funções (requer autenticação)
+npx supabase functions list --project-ref ncnycfmhzpfjmmqzevaz
 ```
+
+Ou no Dashboard: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
 
 Deve aparecer:
 ```
-send-verification-email | (deployed)
+send-verification-email | (deployed) | Enabled
 ```
 
 ## Fluxo de Funcionamento
@@ -230,33 +137,41 @@ send-verification-email | (deployed)
 
 ## Troubleshooting
 
+### Erro: "supabase: O termo não é reconhecido"
+
+**Solução**: Use `npx` em vez de `supabase`:
+
+```powershell
+# ❌ Errado
+supabase functions deploy send-verification-email
+
+# ✅ Correto
+npx supabase functions deploy send-verification-email
+```
+
 ### Erro: "POST https://...functions/v1/send-verification-email 403"
 
-**Causa**: Supabase ANON key sem permissão
+**Causa**: Supabase ANON key sem permissão ou secrets não configurados
 
-**Solução**: Use `VITE_SUPABASE_ANON_KEY` correta ou configure RLS:
+**Solução**: 
+1. Verificar secrets foram configurados no Dashboard
+2. Ou, usar um Personal Access Token
 
-```sql
--- No Supabase SQL Editor
-CREATE POLICY "Allow public function calls"
-ON public.functions
-FOR SELECT
-USING (true);
-```
+### Erro: "RESEND_API_KEY not found" em produção
 
-### Erro: "RESEND_API_KEY not found"
+**Solução**: Configurar no Dashboard:
 
-**Solução**: Verificar se secrets foram configurados:
+1. Vá para: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+2. Clique em "send-verification-email"
+3. Aba "Secrets" ou "Environment Variables"
+4. Adicione:
+   - `RESEND_API_KEY` = `re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj`
+   - `RESEND_FROM_EMAIL` = `onboarding@resend.dev`
 
+Ou via CLI:
 ```powershell
-supabase secrets list --project-ref ncnycfmhzpfjmmqzevaz
-```
-
-Se não aparecer, executar:
-
-```powershell
-supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj \
-  --project-ref ncnycfmhzpfjmmqzevaz
+$env:SUPABASE_ACCESS_TOKEN = "seu_token_pessoal"
+npx supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj --project-ref ncnycfmhzpfjmmqzevaz
 ```
 
 ### Erro: "Email function not found" em produção
@@ -265,25 +180,97 @@ supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj \
 
 **Solução**:
 ```powershell
-supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+npx supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
 ```
+
+Ou via Dashboard: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
 
 ### Emails não chegam
 
-1. Verificar RESEND_API_KEY é válida (pode testar direto em api.resend.com)
-2. Verificar se email está na lista de verificação do Resend (free tier)
-3. Verificar logs da Edge Function no Supabase Dashboard → Functions
+1. ✅ Verificar RESEND_API_KEY é válida (pode testar direto em api.resend.com)
+2. ✅ Verificar se email está na lista de verificação do Resend (free tier tem restrições)
+3. ✅ Verificar logs da Edge Function no Supabase Dashboard → Functions → send-verification-email → Logs
+
+### Erro ao fazer login na CLI
+
+Se `npx supabase login` não funciona:
+
+1. Crie um Personal Access Token: https://app.supabase.com/account/tokens
+2. Configure a variável de ambiente:
+   ```powershell
+   $env:SUPABASE_ACCESS_TOKEN = "seu_token_aqui"
+   ```
+3. Agora os comandos `npx supabase secrets set` funcionarão
 
 ## Próximos Passos
 
-1. ✅ Implementar Edge Function
-2. ✅ Deploy no Supabase
-3. ✅ Testar fluxo de cadastro
-4. Implementar reset de senha
-5. Adicionar autenticação biométrica (fingerprint)
+### 1. ✅ Implementar Edge Function
+   - [x] Função já existe em `supabase/functions/send-verification-email/index.ts`
+   - [x] CORS configurado em `supabase/functions/_shared/cors.ts`
 
-## Documentação
+### 2. 🔑 Configurar Secrets
+   - [ ] Via Dashboard ou CLI com Personal Access Token
+   - [ ] Adicionar `RESEND_API_KEY`
+   - [ ] Adicionar `RESEND_FROM_EMAIL`
+
+### 3. 🚀 Deploy no Supabase
+   ```powershell
+   npx supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+   ```
+
+### 4. 🧪 Testar Fluxo de Cadastro
+   ```powershell
+   npm run dev
+   ```
+   - Criar conta com email
+   - Verificar se email é recebido
+   - Completar fluxo de OTP
+
+### 5. 🌐 Deploy no Vercel
+   ```powershell
+   git push origin main
+   ```
+
+### 6. 📊 Verificar Logs
+   - Dashboard: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+
+### Futuro (Não Bloqueante)
+   - [ ] Reset de senha por email
+   - [ ] Notificações em tempo real (Realtime Subscriptions)
+   - [ ] Autenticação biométrica
+   - [ ] Suporte a WhatsApp/SMS
+
+## Checklist de Deploy
+
+```
+DESENVOLVIMENTO LOCAL
+[ ] Supabase CLI instalado (npx supabase)
+[ ] emailService.ts configura Edge Function com fallback
+[ ] npm run email-proxy para desenvolvimento local
+[ ] npm run dev funciona
+
+SUPABASE PRODUCTION
+[ ] Personal Access Token criado (opcional)
+[ ] Secrets RESEND_API_KEY e RESEND_FROM_EMAIL configurados
+[ ] Edge Function deployada
+[ ] Logs aparecem em Dashboard
+
+APLICAÇÃO
+[ ] Fluxo de cadastro funciona
+[ ] Email é recebido
+[ ] OTP verifica corretamente
+[ ] Dados sincronizam offline-first
+
+VERCEL
+[ ] Projeto conectado ao GitHub
+[ ] Build executa sem erros
+[ ] Edge Function URL configurada em .env
+[ ] Deploy automático ativado
+```
+
+## Documentação Oficial
 
 - [Supabase Edge Functions](https://supabase.com/docs/guides/functions)
-- [Resend Docs](https://resend.com/docs)
-- [Deno](https://docs.deno.com/)
+- [Resend SDK Deno](https://resend.com/docs/send-email)
+- [Deno Runtime](https://docs.deno.com/)
+- [Personal Access Tokens](https://supabase.com/docs/guides/auth/api-tokens)
