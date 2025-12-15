@@ -95,7 +95,7 @@ Acesso liberado
 
 ```powershell
 # Criar função
-supabase functions new send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+supabase functions new send-verification-email --project-ref estngdkevauuuwgjcpg
 ```
 
 ### Step 2: Atualizar Edge Function
@@ -229,10 +229,10 @@ export async function sendVerificationEmail(
 # Terminal (com admin token)
 supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj \
   RESEND_FROM_EMAIL=onboarding@resend.dev \
-  --project-ref ncnycfmhzpfjmmqzevaz
+  --project-ref estngdkevauuuwgjcpg
 
 # Deploy
-supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+supabase functions deploy send-verification-email --project-ref estngdkevauuuwgjcpg
 ```
 
 ### Step 5: Atualizar Vistoria Service (Sincronização)
@@ -268,7 +268,7 @@ git push origin main
 ### Supabase Backend
 ```powershell
 # Caso não tenha permissões ainda, pedir ao admin:
-supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+supabase functions deploy send-verification-email --project-ref estngdkevauuuwgjcpg
 ```
 
 **Pronto!** Nenhum servidor Node.js separado necessário.
@@ -287,7 +287,7 @@ supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqz
 ## Variáveis de Ambiente
 
 ```env
-VITE_SUPABASE_URL=https://ncnycfmhzpfjmmqzevaz.supabase.co
+VITE_SUPABASE_URL=https://estngdkevauuuwgjcpg.supabase.co
 VITE_SUPABASE_ANON_KEY=sua_chave_aqui
 VITE_RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj
 VITE_RESEND_FROM_EMAIL=onboarding@resend.dev
@@ -297,7 +297,7 @@ VITE_RESEND_FROM_EMAIL=onboarding@resend.dev
 
 ### "Email Function not found" em produção
 - Verificar se Edge Function foi deployada
-- Checar: `supabase functions list --project-ref ncnycfmhzpfjmmqzevaz`
+- Checar: `supabase functions list --project-ref estngdkevauuuwgjcpg`
 
 ### Dados offline não sincronizam
 - Verificar conexão com Supabase

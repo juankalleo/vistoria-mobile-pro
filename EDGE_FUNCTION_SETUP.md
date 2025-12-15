@@ -8,7 +8,7 @@ Ao invés de usar um Node.js proxy separado, vamos usar **Supabase Edge Function
 
 - ✅ Supabase CLI instalada
 - ✅ Resend API key: `re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj`
-- ✅ Projeto Supabase: `ncnycfmhzpfjmmqzevaz`
+- ✅ Projeto Supabase: `estngdkevauuuwgjcpg`
 
 ## Step-by-Step
 
@@ -47,7 +47,7 @@ A função já está implementada e usa a biblioteca `resend` do npm. Veja o arq
 
 #### Opção A: Via Dashboard (Recomendado)
 
-1. Acesse: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+1. Acesse: https://app.supabase.com/project/estngdkevauuuwgjcpg/functions
 2. Procure por "Functions" no menu lateral
 3. Clique em "send-verification-email"
 4. Procure a aba "Secrets" ou "Environment Variables"
@@ -63,11 +63,11 @@ A função já está implementada e usa a biblioteca `resend` do npm. Veja o arq
 $env:SUPABASE_ACCESS_TOKEN = "seu_token_pessoal_aqui"
 
 # 3. Configurar secrets
-npx supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj --project-ref ncnycfmhzpfjmmqzevaz
-npx supabase secrets set RESEND_FROM_EMAIL=onboarding@resend.dev --project-ref ncnycfmhzpfjmmqzevaz
+npx supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj --project-ref estngdkevauuuwgjcpg
+npx supabase secrets set RESEND_FROM_EMAIL=onboarding@resend.dev --project-ref estngdkevauuuwgjcpg
 
 # 4. Verificar
-npx supabase secrets list --project-ref ncnycfmhzpfjmmqzevaz
+npx supabase secrets list --project-ref estngdkevauuuwgjcpg
 ```
 
 ### 5. Testar Localmente (Opcional)
@@ -89,7 +89,7 @@ npx supabase stop
 
 ```powershell
 # Com authentication token configurado
-npx supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+npx supabase functions deploy send-verification-email --project-ref estngdkevauuuwgjcpg
 ```
 
 **Saída esperada:**
@@ -99,7 +99,7 @@ npx supabase functions deploy send-verification-email --project-ref ncnycfmhzpfj
 
 Se der erro de autenticação, você pode fazer o deploy via Supabase Dashboard:
 
-1. Vá para: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+1. Vá para: https://app.supabase.com/project/estngdkevauuuwgjcpg/functions
 2. Clique em "send-verification-email"
 3. Clique em "Deploy" ou "Publish"
 
@@ -107,10 +107,10 @@ Se der erro de autenticação, você pode fazer o deploy via Supabase Dashboard:
 
 ```powershell
 # Listar funções (requer autenticação)
-npx supabase functions list --project-ref ncnycfmhzpfjmmqzevaz
+npx supabase functions list --project-ref estngdkevauuuwgjcpg
 ```
 
-Ou no Dashboard: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+Ou no Dashboard: https://app.supabase.com/project/estngdkevauuuwgjcpg/functions
 
 Deve aparecer:
 ```
@@ -122,7 +122,7 @@ send-verification-email | (deployed) | Enabled
 ```
 1. Usuário cadastra com email: user@example.com
                 ↓
-2. App chama: https://ncnycfmhzpfjmmqzevaz.supabase.co/functions/v1/send-verification-email
+2. App chama: https://estngdkevauuuwgjcpg.supabase.co/functions/v1/send-verification-email
                 ↓
 3. Edge Function recebe: { email, code, name }
                 ↓
@@ -161,7 +161,7 @@ npx supabase functions deploy send-verification-email
 
 **Solução**: Configurar no Dashboard:
 
-1. Vá para: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+1. Vá para: https://app.supabase.com/project/estngdkevauuuwgjcpg/functions
 2. Clique em "send-verification-email"
 3. Aba "Secrets" ou "Environment Variables"
 4. Adicione:
@@ -171,7 +171,7 @@ npx supabase functions deploy send-verification-email
 Ou via CLI:
 ```powershell
 $env:SUPABASE_ACCESS_TOKEN = "seu_token_pessoal"
-npx supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj --project-ref ncnycfmhzpfjmmqzevaz
+npx supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj --project-ref estngdkevauuuwgjcpg
 ```
 
 ### Erro: "Email function not found" em produção
@@ -180,10 +180,10 @@ npx supabase secrets set RESEND_API_KEY=re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj --p
 
 **Solução**:
 ```powershell
-npx supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+npx supabase functions deploy send-verification-email --project-ref estngdkevauuuwgjcpg
 ```
 
-Ou via Dashboard: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+Ou via Dashboard: https://app.supabase.com/project/estngdkevauuuwgjcpg/functions
 
 ### Emails não chegam
 
@@ -215,7 +215,7 @@ Se `npx supabase login` não funciona:
 
 ### 3. 🚀 Deploy no Supabase
    ```powershell
-   npx supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+   npx supabase functions deploy send-verification-email --project-ref estngdkevauuuwgjcpg
    ```
 
 ### 4. 🧪 Testar Fluxo de Cadastro
@@ -232,7 +232,7 @@ Se `npx supabase login` não funciona:
    ```
 
 ### 6. 📊 Verificar Logs
-   - Dashboard: https://app.supabase.com/project/ncnycfmhzpfjmmqzevaz/functions
+   - Dashboard: https://app.supabase.com/project/estngdkevauuuwgjcpg/functions
 
 ### Futuro (Não Bloqueante)
    - [ ] Reset de senha por email

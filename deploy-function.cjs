@@ -4,7 +4,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const projectRef = 'ncnycfmhzpfjmmqzevaz';
+const projectRef = 'estngdkevauuuwgjcpg';
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
 
 if (!accessToken) {

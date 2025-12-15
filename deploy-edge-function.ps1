@@ -1,6 +1,6 @@
 # Deploy Edge Function - Passo a Passo
 
-$projectRef = "ncnycfmhzpfjmmqzevaz"
+$projectRef = "estngdkevauuuwgjcpg"
 $resendApiKey = "re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj"
 
 Write-Host ""

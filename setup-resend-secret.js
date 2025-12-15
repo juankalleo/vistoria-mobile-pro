@@ -1,7 +1,7 @@
 const https = require('https');
 
 // Adicionar secret do Resend no Supabase
-const projectRef = 'ncnycfmhzpfjmmqzevaz';
+const projectRef = 'estngdkevauuuwgjcpg';
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
 const resendApiKey = 're_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj';
 
