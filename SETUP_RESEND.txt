@@ -1,0 +1,35 @@
+# Setup Resend + Supabase Edge Function
+
+## Passo 1: Obter Access Token Supabase
+
+1. Vá a: https://app.supabase.com/account/tokens
+2. Clique em "Generate New Token"
+3. Copie o token gerado
+
+## Passo 2: Configurar no PowerShell
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = "seu_token_aqui"
+```
+
+## Passo 3: Deploy Edge Function
+
+```powershell
+npx supabase functions deploy send-verification-email --project-ref ncnycfmhzpfjmmqzevaz
+```
+
+## Passo 4: Adicionar Secret Resend
+
+```powershell
+npx supabase secrets set RESEND_API_KEY "re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj" --project-ref ncnycfmhzpfjmmqzevaz
+```
+
+## Passo 5: Testar
+
+1. Execute: `npm run dev`
+2. Registre um novo usuário
+3. Verifique se o email foi recebido
+
+---
+
+**Pronto!** O sistema agora envia emails via Resend através da Edge Function Supabase.

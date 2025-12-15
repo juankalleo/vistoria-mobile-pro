@@ -1,0 +1,2 @@
+login: admin@vistoria.local
+senha: VSX9090123wnq!

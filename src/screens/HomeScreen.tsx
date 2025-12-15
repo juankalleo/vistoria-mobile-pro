@@ -3,17 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { Vistoria } from "@/types/vistoria";
 import { getAllVistorias, getNextVistoriaNumber } from "@/database/db";
 import { useVistoriaStore } from "@/store/useVistoriaStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { CardVistoria } from "@/components/CardVistoria";
-import { Plus, Search, Truck } from "lucide-react";
+import { Plus, Search, Truck, LogOut, Settings, Shield } from "lucide-react";
 import { FormInput } from "@/components/FormInput";
 import { toast } from "@/hooks/use-toast";
 import { generateVistoriaPdf } from "@/lib/pdf";
 import { cachePdfBlob } from "@/lib/offline";
 import { saveVistoria } from "@/database/db";
 import { arrayBufferToBase64 } from "@/lib/encoding";
+import { Button } from "@/components/ui/button";
 
 export function HomeScreen() {
   const navigate = useNavigate();
+  const { user, logout, syncData } = useAuthStore();
   const { initNewVistoria, loadVistoria } = useVistoriaStore();
   const [vistorias, setVistorias] = useState<Vistoria[]>([]);
   const [search, setSearch] = useState("");
@@ -21,7 +24,9 @@ export function HomeScreen() {
 
   useEffect(() => {
     loadVistorias();
-  }, []);
+    // Sincronizar dados ao abrir a tela
+    syncData();
+  }, [syncData]);
 
   const loadVistorias = async () => {
     try {
@@ -44,6 +49,15 @@ export function HomeScreen() {
   const handleView = (vistoria: Vistoria) => {
     loadVistoria(vistoria);
     navigate("/vistoria");
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
+  const handleGoToAdmin = () => {
+    navigate("/admin");
   };
 
   const openWhatsAppComposer = (message: string) => {
@@ -203,10 +217,34 @@ export function HomeScreen() {
     <div className="min-h-screen bg-background safe-area-top safe-area-bottom">
       {/* Header */}
       <header className="bg-primary text-primary-foreground p-6 pb-8">
-        <div className="flex items-center mb-4">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold">Vistorias</h1>
-            <p className="text-sm opacity-80">Sistema de Guincho</p>
+            <p className="text-sm opacity-80">
+              {user?.name || "Usuário"} {user?.role === 'admin' && <span className="ml-1">👨‍💼</span>}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {user?.role === 'admin' && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleGoToAdmin}
+                className="gap-2"
+                title="Painel Administrativo"
+              >
+                <Shield className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleLogout}
+              className="gap-2"
+              title="Sair"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
         <div className="relative">
