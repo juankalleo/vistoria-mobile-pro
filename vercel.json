@@ -2,17 +2,11 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "env": [
-    "VITE_SUPABASE_URL",
-    "VITE_SUPABASE_ANON_KEY",
-    "VITE_RESEND_API_KEY",
-    "VITE_RESEND_FROM_EMAIL",
-    "RESEND_API_KEY"
-  ],
-  "functions": {
-    "supabase/functions/send-verification-email": {
-      "runtime": "edge",
-      "memory": 128
-    }
+  "env": {
+    "VITE_SUPABASE_URL": "@vite_supabase_url",
+    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key",
+    "VITE_RESEND_API_KEY": "@vite_resend_api_key",
+    "VITE_RESEND_FROM_EMAIL": "@vite_resend_from_email",
+    "RESEND_API_KEY": "@resend_api_key"
   }
 }
