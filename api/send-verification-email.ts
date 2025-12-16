@@ -1,7 +1,14 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj');
+// Usar Gmail com app password (gratuito)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'seu-email@gmail.com',
+    pass: process.env.EMAIL_PASSWORD || 'sua-senha-app',
+  },
+});
 
 export default async (req: VercelRequest, res: VercelResponse) => {
   // CORS headers
@@ -25,62 +32,54 @@ export default async (req: VercelRequest, res: VercelResponse) => {
       return res.status(400).json({ error: 'Email e código são obrigatórios' });
     }
 
-    // Em modo teste, enviar para o email de teste do Resend
-    const toEmail = process.env.NODE_ENV === 'production' && email ? email : 'juankalleo4@gmail.com';
-
-    const result = await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: toEmail,
-      subject: '🔐 Seu código de verificação - Vistoria',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="margin: 0;">Vistoria Mobile</h1>
-            <p style="margin: 5px 0 0 0;">Verificação de Email</p>
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0;">Vistoria Mobile</h1>
+          <p style="margin: 5px 0 0 0;">Verificação de Email</p>
+        </div>
+        
+        <div style="padding: 30px; background: #f9f9f9;">
+          <p>Olá${name ? ` ${name}` : ''},</p>
+          
+          <p>Recebemos sua solicitação de verificação de email. Use o código abaixo para confirmar sua conta:</p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; border: 2px solid #667eea;">
+            <p style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #667eea;">
+              ${code}
+            </p>
           </div>
           
-          <div style="padding: 30px; background: #f9f9f9;">
-            <p>Olá${name ? ` ${name}` : ''},</p>
-            
-            <p>Email de destino: <strong>${email}</strong></p>
-            
-            <p>Recebemos sua solicitação de verificação de email. Use o código abaixo para confirmar sua conta:</p>
-            
-            <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; border: 2px solid #667eea;">
-              <p style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #667eea;">
-                ${code}
-              </p>
-            </div>
-            
-            <p style="color: #666; font-size: 14px;">
-              ⏱️ Este código expira em <strong>10 minutos</strong>
-            </p>
-            
-            <p style="color: #666; font-size: 14px;">
-              Se você não solicitou este código, ignore este email.
-            </p>
-            
-            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            
-            <p style="color: #999; font-size: 12px; margin: 0;">
-              © 2025 Vistoria Mobile. Todos os direitos reservados.
-            </p>
-          </div>
+          <p style="color: #666; font-size: 14px;">
+            ⏱️ Este código expira em <strong>10 minutos</strong>
+          </p>
+          
+          <p style="color: #666; font-size: 14px;">
+            Se você não solicitou este código, ignore este email.
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          
+          <p style="color: #999; font-size: 12px; margin: 0;">
+            © 2025 Vistoria Mobile. Todos os direitos reservados.
+          </p>
         </div>
-      `,
+      </div>
+    `;
+
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'seu-email@gmail.com',
+      to: email,
+      subject: '🔐 Seu código de verificação - Vistoria',
+      html: htmlContent,
     });
 
-    if (result.error) {
-      console.error('Erro ao enviar email:', result.error);
-      return res.status(400).json({ error: result.error });
-    }
-
-    console.log('✅ Email enviado para:', toEmail);
+    console.log('✅ Email enviado para:', email, 'ID:', info.messageId);
     
     return res.status(200).json({
       success: true,
       message: 'Email enviado com sucesso',
-      id: result.data?.id,
+      id: info.messageId,
     });
   } catch (error) {
     console.error('Erro na API route:', error);
