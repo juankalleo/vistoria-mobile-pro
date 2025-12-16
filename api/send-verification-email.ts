@@ -1,49 +1,34 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { Resend } from 'resend';
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "re_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj";
-const resend = new Resend(RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || 're_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj');
 
-serve(async (req) => {
+export default async (req: VercelRequest, res: VercelResponse) => {
   // CORS headers
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   // Handle preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
 
-  if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method not allowed" }),
-      { 
-        status: 405,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { email, code, name } = await req.json();
+    const { email, code, name } = req.body;
 
     if (!email || !code) {
-      return new Response(
-        JSON.stringify({ error: "Email e código são obrigatórios" }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
+      return res.status(400).json({ error: 'Email e código são obrigatórios' });
     }
 
     const result = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: 'onboarding@resend.dev',
       to: email,
-      subject: "🔐 Seu código de verificação - Vistoria",
+      subject: '🔐 Seu código de verificação - Vistoria',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
@@ -81,36 +66,21 @@ serve(async (req) => {
     });
 
     if (result.error) {
-      console.error("Erro ao enviar email:", result.error);
-      return new Response(
-        JSON.stringify({ error: result.error }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
-      );
+      console.error('Erro ao enviar email:', result.error);
+      return res.status(400).json({ error: result.error });
     }
 
-    console.log("✅ Email enviado para:", email);
+    console.log('✅ Email enviado para:', email);
     
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Email enviado com sucesso",
-        id: result.data?.id,
-      }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+    return res.status(200).json({
+      success: true,
+      message: 'Email enviado com sucesso',
+      id: result.data?.id,
+    });
   } catch (error) {
-    console.error("Erro na Edge Function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+    console.error('Erro na API route:', error);
+    return res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Erro ao enviar email' 
+    });
   }
-});
+};
