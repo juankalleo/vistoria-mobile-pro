@@ -14,14 +14,9 @@ export async function sendVerificationEmail(
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       // Desenvolvimento local - usar proxy
       functionUrl = EMAIL_PROXY_URL;
-    } else if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-      // Vercel - usar API route do Vercel
-      functionUrl = '/api/send-verification-email';
     } else {
-      // Fallback para Supabase Edge Function
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      functionUrl = `${supabaseUrl}/functions/v1/send-verification-email`;
+      // Produção e preview - usar API route do Vercel
+      functionUrl = '/api/send-verification-email';
     }
 
     try {
@@ -29,9 +24,6 @@ export async function sendVerificationEmail(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(functionUrl.includes('supabase') && {
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          }),
         },
         body: JSON.stringify({ email, code, name }),
       });
@@ -42,13 +34,14 @@ export async function sendVerificationEmail(
         console.log('📧 ID do email:', result.id);
         return { success: true };
       } else {
-        console.warn('⚠️ Resposta não OK:', response.status);
+        const errorText = await response.text();
+        console.warn('⚠️ Resposta não OK:', response.status, errorText);
       }
     } catch (fetchError) {
       console.warn('⚠️ Erro ao conectar:', fetchError);
     }
 
-    // Fallback: Email Proxy local (desenvolvimento)
+    // Fallback: Email Proxy local (apenas em localhost)
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       try {
         const response = await fetch(EMAIL_PROXY_URL, {
