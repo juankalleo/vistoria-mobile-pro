@@ -158,12 +158,42 @@ export async function registerUser(
       createdAt: new Date().toISOString(),
     };
 
+    // Tentar salvar no Supabase primeiro
+    if (navigator.onLine) {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .insert([{
+            id: user.id,
+            name: user.name,
+            email: user.email || null,
+            phone: user.phone || null,
+            role: user.role,
+            is_active: user.isActive,
+            created_at: user.createdAt,
+          }])
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Erro ao salvar no Supabase, salvando localmente:', error);
+        } else {
+          console.log('✅ Usuário criado no Supabase:', data);
+          return { success: true };
+        }
+      } catch (supabaseError) {
+        console.warn('Erro ao conectar Supabase, salvando localmente:', supabaseError);
+      }
+    }
+
+    // Fallback: salvar localmente
     const db = await getLocalDB();
     await db.put('config', { 
       key: `pending_user_${user.id}`, 
       value: JSON.stringify({ user, passwordHash, email: emailOrPhone })
     });
 
+    console.log('✅ Usuário salvo localmente (sync pendente)');
     return { success: true };
   } catch (error) {
     console.error('Erro ao registrar:', error);
