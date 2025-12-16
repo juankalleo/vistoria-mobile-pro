@@ -25,9 +25,12 @@ export default async (req: VercelRequest, res: VercelResponse) => {
       return res.status(400).json({ error: 'Email e código são obrigatórios' });
     }
 
+    // Em modo teste, enviar para o email de teste do Resend
+    const toEmail = process.env.NODE_ENV === 'production' && email ? email : 'juankalleo4@gmail.com';
+
     const result = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to: email,
+      to: toEmail,
       subject: '🔐 Seu código de verificação - Vistoria',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -38,6 +41,8 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           
           <div style="padding: 30px; background: #f9f9f9;">
             <p>Olá${name ? ` ${name}` : ''},</p>
+            
+            <p>Email de destino: <strong>${email}</strong></p>
             
             <p>Recebemos sua solicitação de verificação de email. Use o código abaixo para confirmar sua conta:</p>
             
@@ -70,7 +75,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
       return res.status(400).json({ error: result.error });
     }
 
-    console.log('✅ Email enviado para:', email);
+    console.log('✅ Email enviado para:', toEmail);
     
     return res.status(200).json({
       success: true,
