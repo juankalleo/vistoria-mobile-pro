@@ -8,6 +8,8 @@ import { HomeScreen } from "./screens/HomeScreen";
 import { FormScreen } from "./screens/FormScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { VerifyOTPScreen } from "./screens/VerifyOTPScreen";
+import { ForgotPassword } from "./screens/ForgotPassword";
+import { ChangePassword } from "./screens/ChangePassword";
 import { AdminPanel } from "./screens/AdminPanel";
 import NotFound from "./pages/NotFound";
 import { useAuthStore } from "./store/useAuthStore";
@@ -54,6 +56,8 @@ const App = () => {
             {/* Autenticação */}
             <Route path="/login" element={<LoginScreen />} />
             <Route path="/verify-otp" element={<VerifyOTPScreen />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/change-password" element={<ChangePassword />} />
 
             {/* Admin */}
             <Route

@@ -6,6 +6,8 @@ import {
   registerUser,
   sendVerificationCode,
   verifyCode,
+  requestPasswordReset,
+  resetPasswordLocal,
   getLocalSession,
   saveSessionLocally,
   syncPendingData,
@@ -24,6 +26,8 @@ interface AuthStore {
   login: (emailOrPhone: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   register: (name: string, emailOrPhone: string, password: string, isPhone: boolean) => Promise<boolean>;
+  requestPasswordReset: (emailOrPhone: string) => Promise<boolean>;
+  resetPassword: (emailOrPhone: string, newPassword: string) => Promise<boolean>;
   
   // Verificação OTP
   sendOTP: (emailOrPhone: string, isPhone: boolean) => Promise<boolean>;
@@ -102,6 +106,42 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro ao registrar';
+      set({ error: message, isLoading: false });
+      return false;
+    }
+  },
+
+  requestPasswordReset: async (emailOrPhone: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const result = await requestPasswordReset(emailOrPhone);
+      if (result.success) {
+        set({ isLoading: false });
+        return true;
+      } else {
+        set({ error: result.error || 'Erro ao solicitar reset', isLoading: false });
+        return false;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro ao solicitar reset';
+      set({ error: message, isLoading: false });
+      return false;
+    }
+  },
+
+  resetPassword: async (emailOrPhone: string, newPassword: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const result = await resetPasswordLocal(emailOrPhone, newPassword);
+      if (result.success) {
+        set({ isLoading: false });
+        return true;
+      } else {
+        set({ error: result.error || 'Erro ao resetar senha', isLoading: false });
+        return false;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro ao resetar senha';
       set({ error: message, isLoading: false });
       return false;
     }

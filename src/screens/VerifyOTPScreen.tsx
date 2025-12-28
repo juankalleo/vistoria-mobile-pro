@@ -13,7 +13,7 @@ const COUNTDOWN_SECONDS = 60;
 export function VerifyOTPScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { sendOTP, verifyOTP, error, isLoading, setError } = useAuthStore();
+  const { sendOTP, verifyOTP, error, isLoading, setError, syncData } = useAuthStore();
 
   const contact = searchParams.get('contact');
   const isPhone = searchParams.get('isPhone') === 'true';
@@ -71,6 +71,12 @@ export function VerifyOTPScreen() {
     const success = await verifyOTP(contact!, codeToVerify);
 
     if (success) {
+      // Tentar sincronizar quaisquer usuários pendentes (salvos localmente quando offline)
+      try {
+        await syncData();
+      } catch (e) {
+        console.warn('Erro ao sincronizar após verificação', e);
+      }
       if (isNewUser) {
         // Ir para tela de home após registro bem-sucedido
         navigate('/');

@@ -179,6 +179,17 @@ export async function registerUser(
           console.warn('Erro ao salvar no Supabase, salvando localmente:', error);
         } else {
           console.log('✅ Usuário criado no Supabase:', data);
+          // If registered online, also store credentials
+          try {
+            await supabase.from('user_credentials').upsert({
+              user_id: user.id,
+              password_hash: passwordHash,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' });
+          } catch (credErr) {
+            console.warn('Erro ao salvar credenciais no Supabase', credErr);
+          }
+
           return { success: true };
         }
       } catch (supabaseError) {
@@ -252,6 +263,42 @@ export async function loginUser(
       return { success: false, error: 'Usuário não encontrado' };
     }
 
+    // Verificar senha local (se houver)
+    try {
+      const db = await getLocalDB();
+      const pwEntry = await db.get('config', `user_password_${emailOrPhone}`);
+      if (pwEntry?.value) {
+        const providedHash = await hashPassword(password);
+        if (providedHash !== pwEntry.value) {
+          return { success: false, error: 'Senha incorreta' };
+        }
+      } else {
+        // If online, try to validate against Supabase user_credentials
+        if (navigator.onLine && user.id) {
+          try {
+            const { data: cred } = await supabase.from('user_credentials').select('password_hash').eq('user_id', user.id).single();
+            if (cred?.password_hash) {
+              const providedHash = await hashPassword(password);
+              if (providedHash !== cred.password_hash) {
+                return { success: false, error: 'Senha incorreta' };
+              }
+            } else {
+              // No credential found: require non-empty password
+              if (!password) return { success: false, error: 'Senha incorreta' };
+            }
+          } catch (e) {
+            // fallback to local behavior
+            if (!password) return { success: false, error: 'Senha incorreta' };
+          }
+        } else {
+          // Sem senha armazenada localmente e offline: não permitir login sem senha
+          if (!password) return { success: false, error: 'Senha incorreta' };
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao validar senha local', e);
+    }
+
     const session: AuthSession = {
       user,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -286,7 +333,7 @@ export async function syncPendingData(userId: string): Promise<void> {
           
           // Try to save to Supabase
           try {
-            await supabase.from('users').insert([{
+            const { data: userData, error: userError } = await supabase.from('users').insert([{
               id: user.id,
               name: user.name,
               email: user.email || null,
@@ -294,7 +341,22 @@ export async function syncPendingData(userId: string): Promise<void> {
               role: user.role,
               is_active: user.isActive,
               created_at: user.createdAt,
-            }]);
+            }]).select().single();
+
+            if (userError) throw userError;
+
+            // If there is a passwordHash, insert into user_credentials
+            if (passwordHash) {
+              try {
+                await supabase.from('user_credentials').upsert({
+                  user_id: user.id,
+                  password_hash: passwordHash,
+                  updated_at: new Date().toISOString(),
+                }, { onConflict: 'user_id' });
+              } catch (credErr) {
+                console.warn('Erro ao salvar credenciais no Supabase', credErr);
+              }
+            }
           } catch (e) {
             console.warn('Erro ao sincronizar usuário');
           }
@@ -305,5 +367,47 @@ export async function syncPendingData(userId: string): Promise<void> {
         console.warn('Erro ao processar pending user');
       }
     }
+  }
+}
+
+
+// Pedido de recuperação: reusar o envio de código
+export async function requestPasswordReset(emailOrPhone: string): Promise<{ success: boolean; error?: string }> {
+  return await sendVerificationCode(emailOrPhone, false);
+}
+
+// Resetar senha (salva localmente para validação no login)
+export async function resetPasswordLocal(emailOrPhone: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const passwordHash = await hashPassword(newPassword);
+    const db = await getLocalDB();
+    await db.put('config', { key: `user_password_${emailOrPhone}`, value: passwordHash });
+    // If online, try to persist credential to Supabase user_credentials
+    if (navigator.onLine) {
+      try {
+        // Need to resolve user_id: try to find user by email or phone
+        const isPhone = /^\d+/.test(emailOrPhone);
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id')
+          .eq(isPhone ? 'phone' : 'email', emailOrPhone)
+          .limit(1)
+          .single();
+
+        if (userData?.id) {
+          await supabase.from('user_credentials').upsert({
+            user_id: userData.id,
+            password_hash: passwordHash,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id' });
+        }
+      } catch (e) {
+        console.warn('Erro ao sincronizar credenciais no Supabase', e);
+      }
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao resetar senha:', error);
+    return { success: false, error: 'Erro ao resetar senha' };
   }
 }

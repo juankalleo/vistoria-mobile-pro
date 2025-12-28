@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Link } from 'react-router-dom';
 
 export function LoginScreen() {
   const navigate = useNavigate();
@@ -164,7 +165,8 @@ export function LoginScreen() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <div className="flex items-center justify-between">
+                <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -173,7 +175,14 @@ export function LoginScreen() {
                 ) : (
                   'Entrar'
                 )}
-              </Button>
+                </Button>
+              </div>
+
+              <div className="mt-2 text-right">
+                <Link to={`/forgot-password`} className="text-sm text-blue-600 hover:underline">
+                  Esqueci a senha
+                </Link>
+              </div>
             </form>
           </TabsContent>
 
