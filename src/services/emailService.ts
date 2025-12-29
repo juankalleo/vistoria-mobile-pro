@@ -30,15 +30,14 @@ export async function sendVerificationEmail(
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Email enviado com sucesso');
-        console.log('📧 ID do email:', result.id);
+        // Email enviado com sucesso
         return { success: true };
       } else {
         const errorText = await response.text();
-        console.warn('⚠️ Resposta não OK:', response.status, errorText);
+        // Resposta não OK
       }
     } catch (fetchError) {
-      console.warn('⚠️ Erro ao conectar:', fetchError);
+      // Erro ao conectar
     }
 
     // Fallback: Email Proxy local (apenas em localhost)
@@ -58,22 +57,16 @@ export async function sendVerificationEmail(
 
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Email enviado via proxy local para:', email);
-          console.log('📧 ID do email:', result.id);
+          // Email enviado via proxy local
           return { success: true };
         }
       } catch (proxyError) {
-        console.warn('Proxy local não disponível. Código salvo localmente.');
+        // Proxy local não disponível. Código salvo localmente.
       }
     }
 
     // Se nenhum método funcionou, retornar sucesso com warning
-    console.log('⚠️ Nenhum método de envio disponível. Código salvo localmente.');
-    console.log('');
-    console.log('Para desenvolvimento local, execute em outro terminal:');
-    console.log('   npm run email-proxy');
-    console.log('');
-    console.log('🔐 Código para teste:', code);
+    // Nenhum método de envio disponível. Código salvo localmente.
     
     return { success: true };
   } catch (error) {

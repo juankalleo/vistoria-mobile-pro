@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,16 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 const OTP_LENGTH = 6;
 const COUNTDOWN_SECONDS = 60;
 
-export function VerifyOTPScreen() {
+export default function VerifyOTPScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { sendOTP, verifyOTP, error, isLoading, setError, syncData } = useAuthStore();
 
-  const contact = searchParams.get('contact');
+  // Permite receber email e info via location.state
+  const state = location.state as { email?: string; info?: string } | undefined;
+
+  const contact = state?.email || searchParams.get('contact');
   const isPhone = searchParams.get('isPhone') === 'true';
   const isNewUser = searchParams.get('isNewUser') === 'true';
 
@@ -32,7 +36,6 @@ export function VerifyOTPScreen() {
       navigate('/login');
       return;
     }
-
     // Enviar código automaticamente na primeira vez
     sendOTP(contact, isPhone);
   }, [contact, isPhone, navigate, sendOTP]);
@@ -43,11 +46,9 @@ export function VerifyOTPScreen() {
       setCanResend(true);
       return;
     }
-
     const timer = setTimeout(() => {
       setCountdown(countdown - 1);
     }, 1000);
-
     return () => clearTimeout(timer);
   }, [countdown]);
 
@@ -55,7 +56,6 @@ export function VerifyOTPScreen() {
     // Remove caracteres não numéricos
     const numericValue = value.replace(/\D/g, '').slice(0, OTP_LENGTH);
     setCode(numericValue);
-
     if (numericValue.length === OTP_LENGTH) {
       handleVerify(numericValue);
     }
@@ -63,14 +63,11 @@ export function VerifyOTPScreen() {
 
   const handleVerify = async (verifyCode?: string) => {
     const codeToVerify = verifyCode || code;
-
     if (codeToVerify.length !== OTP_LENGTH) {
       setError('Digite o código completo');
       return;
     }
-
     const success = await verifyOTP(contact!, codeToVerify);
-
     if (success) {
       // Tentar sincronizar quaisquer usuários pendentes (salvos localmente quando offline)
       try {
@@ -106,15 +103,16 @@ export function VerifyOTPScreen() {
   };
 
   const formatContact = () => {
+    if (!contact) return '';
     if (isPhone) {
-      const numbers = contact!.replace(/\D/g, '');
+      const numbers = contact.replace(/\D/g, '');
       if (numbers.length >= 10) {
         // Formato: (XX) XXXXX-XXXX
         return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
       }
-      return contact!;
+      return contact;
     }
-    return contact!;
+    return contact;
   };
 
   return (
@@ -145,7 +143,7 @@ export function VerifyOTPScreen() {
           <p className="font-medium text-gray-900 mt-1">{formatContact()}</p>
           <p className="text-xs text-gray-600 mt-3 flex items-start gap-2">
             <span className="text-blue-600 font-semibold">💡</span>
-            <span>Verifique a pasta <strong>Spam</strong> do seu email se não receber em alguns segundos</span>
+            <span>{state?.info || 'Verifique a pasta Spam do seu email se não receber em alguns segundos'}</span>
           </p>
         </div>
 
@@ -169,7 +167,7 @@ export function VerifyOTPScreen() {
             <Label htmlFor="otp-code" className="text-sm font-medium">
               Código de Verificação
             </Label>
-            <div className="mt-2 flex gap-2 justify-between">
+            <div className="mt-2 flex gap-2 justify-between max-w-full overflow-x-auto sm:justify-center">
               {Array.from({ length: OTP_LENGTH }).map((_, index) => (
                 <Input
                   key={index}
@@ -178,16 +176,33 @@ export function VerifyOTPScreen() {
                   maxLength={1}
                   value={code[index] || ''}
                   onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
                     const newCode = code.split('');
-                    newCode[index] = e.target.value.replace(/\D/g, '');
-                    const updatedCode = newCode.join('');
-                    handleCodeChange(updatedCode);
+                    newCode[index] = val;
+                    // Se apagar, limpa o campo e volta o foco
+                    if (!val) {
+                      newCode[index] = '';
+                      handleCodeChange(newCode.join(''));
+                      return;
+                    }
+                    handleCodeChange(newCode.join(''));
+                    // Avançar para o próximo input automaticamente
+                    if (val && index < OTP_LENGTH - 1) {
+                      const inputs = document.querySelectorAll('input[inputmode="numeric"]');
+                      (inputs[index + 1] as HTMLInputElement)?.focus();
+                    }
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Backspace' && !code[index] && index > 0) {
-                      setFocusIndex(index - 1);
-                      const inputs = document.querySelectorAll('input[inputmode="numeric"]');
-                      (inputs[index - 1] as HTMLInputElement)?.focus();
+                    if (e.key === 'Backspace') {
+                      const newCode = code.split('');
+                      if (code[index]) {
+                        newCode[index] = '';
+                        handleCodeChange(newCode.join(''));
+                      } else if (index > 0) {
+                        setFocusIndex(index - 1);
+                        const inputs = document.querySelectorAll('input[inputmode="numeric"]');
+                        (inputs[index - 1] as HTMLInputElement)?.focus();
+                      }
                     } else if (e.key === 'ArrowLeft' && index > 0) {
                       const inputs = document.querySelectorAll('input[inputmode="numeric"]');
                       (inputs[index - 1] as HTMLInputElement)?.focus();
@@ -197,7 +212,7 @@ export function VerifyOTPScreen() {
                     }
                   }}
                   disabled={isLoading}
-                  className="w-12 h-12 text-center text-lg font-semibold"
+                  className={`w-12 h-12 text-center text-lg font-semibold flex-shrink-0 transition-all border-2 ${focusIndex === index ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-300 bg-white'}`}
                   onFocus={() => setFocusIndex(index)}
                 />
               ))}
