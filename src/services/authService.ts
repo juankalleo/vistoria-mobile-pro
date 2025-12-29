@@ -177,6 +177,11 @@ export async function registerUser(
 
         if (error) {
           console.warn('Erro ao salvar no Supabase, salvando localmente:', error);
+          try {
+            console.error('Detalhes do erro Supabase (insert users):', JSON.stringify(error));
+          } catch (_) {
+            console.error('Detalhes do erro Supabase (insert users):', error);
+          }
         } else {
           console.log('✅ Usuário criado no Supabase:', data);
           // If registered online, also store credentials
@@ -188,12 +193,14 @@ export async function registerUser(
             }, { onConflict: 'user_id' });
           } catch (credErr) {
             console.warn('Erro ao salvar credenciais no Supabase', credErr);
+            console.error('Detalhes do erro Supabase (upsert user_credentials):', credErr);
           }
 
           return { success: true };
         }
       } catch (supabaseError) {
         console.warn('Erro ao conectar Supabase, salvando localmente:', supabaseError);
+        console.error('Detalhes do erro Supabase (connection):', supabaseError);
       }
     }
 

@@ -16,3 +16,13 @@ export async function checkSupabaseConnection(): Promise<boolean> {
     return false;
   }
 }
+
+// Log para debug: mostrar URL usada em runtime (somente no dev)
+if (import.meta.env.MODE === 'development') {
+  try {
+    // eslint-disable-next-line no-console
+    console.info('Supabase client usando URL:', SUPABASE_URL);
+  } catch (e) {
+    // ignore
+  }
+}

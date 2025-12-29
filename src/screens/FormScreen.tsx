@@ -22,7 +22,7 @@ const tabs = [
 	{ id: 2, label: "Motivo", shortLabel: "Mot." },
 	{ id: 3, label: "Dados", shortLabel: "Dados" },
 	{ id: 4, label: "Obs", shortLabel: "Obs" },
-	{ id: 5, label: "Coletor", shortLabel: "Col." },
+	{ id: 5, label: "Cliente", shortLabel: "Cli." },
 	{ id: 6, label: "Fotos 1", shortLabel: "F1" },
 	{ id: 7, label: "Destinatário", shortLabel: "Dest." },
 	{ id: 8, label: "Fotos 2", shortLabel: "F2" },
@@ -123,10 +123,11 @@ export function FormScreen() {
 		}
 
 		// Validar assinatura do recebidor (aba Recebidor - aba 5)
+		// Validar assinatura do cliente (aba Cliente - aba 5)
 		if (!currentVistoria.declaracaoEntrega?.assinaturaBase64?.trim()) {
 			toast({
 				title: "Assinatura obrigatória",
-				description: "Assine na aba Coletor.",
+				description: "Assine na aba Cliente.",
 				variant: "destructive",
 			});
 			setActiveTab(5);
@@ -136,7 +137,7 @@ export function FormScreen() {
 		if (!currentVistoria.declaracaoEntrega?.nome?.trim()) {
 			toast({
 				title: "Nome obrigatório",
-				description: "Preencha o Nome do Coletor na aba Coletor.",
+				description: "Preencha o Nome do Cliente na aba Cliente.",
 				variant: "destructive",
 			});
 			setActiveTab(5);
@@ -146,7 +147,7 @@ export function FormScreen() {
 		if (!currentVistoria.declaracaoEntrega?.cpf?.trim()) {
 			toast({
 				title: "CPF obrigatório",
-				description: "Preencha o CPF do Coletor na aba Coletor.",
+				description: "Preencha o CPF do Cliente na aba Cliente.",
 				variant: "destructive",
 			});
 			setActiveTab(5);
@@ -283,7 +284,7 @@ export function FormScreen() {
 			case 4:
 				return <ObservacoesTab />;
 			case 5:
-				// Aba do Coletor
+				// Aba do Cliente
 				return <DeclaracoesTab tipoDeclaracao="entrega" />;
 			case 6:
 				// Fotos 1: Local e Guincho

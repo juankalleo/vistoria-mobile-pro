@@ -34,16 +34,16 @@ export function DeclaracoesTab({ tipoDeclaracao }: DeclaracoesTabProps) {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Declaração de Coletor */}
+      {/* Declaração do Cliente */}
       {mostrarEntrega && (
         <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-          <h3 className="text-lg font-bold text-foreground mb-4">📋 Coletor</h3>
+          <h3 className="text-lg font-bold text-foreground mb-4">📋 Cliente</h3>
           
           <div className="bg-muted rounded-xl p-4 mb-4 text-sm text-muted-foreground">
             <p>
               Declaro que estou de acordo e concordo com todas as informações, condições e dados 
-              descritos nesta vistoria. Confirmo que recolhi o veículo acima descrito no local combinado, 
-              conforme vistoria realizada no ato da coleta.
+              descritos nesta vistoria. Confirmo minha participação no processo relacionado ao veículo 
+              acima descrito, conforme vistoria realizada.
             </p>
           </div>
 
@@ -52,7 +52,7 @@ export function DeclaracoesTab({ tipoDeclaracao }: DeclaracoesTabProps) {
               label="Nome Completo"
               value={currentVistoria.declaracaoEntrega.nome}
               onChange={(e) => updateDeclaracaoEntrega("nome", e.target.value)}
-              placeholder="Nome do coletor"
+              placeholder="Nome do cliente"
             />
 
             <FormInput

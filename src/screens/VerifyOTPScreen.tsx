@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
+import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,6 +77,12 @@ export function VerifyOTPScreen() {
         await syncData();
       } catch (e) {
         console.warn('Erro ao sincronizar após verificação', e);
+      }
+      // Mostrar notificação de sucesso
+      if (isNewUser) {
+        toast.success('Verificação realizada — bem-vindo!');
+      } else {
+        toast.success('Código verificado. Você pode criar uma nova senha.');
       }
       if (isNewUser) {
         // Ir para tela de home após registro bem-sucedido
