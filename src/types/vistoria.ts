@@ -106,6 +106,9 @@ export interface Vistoria {
   pdfBase64?: string;
   criadoEm: string;
   atualizadoEm: string;
+  // inspector who created the vistoria (local ownership)
+  inspectorId?: string;
+  inspectorName?: string;
 }
 
 export const defaultDadosCarro: DadosCarro = {
@@ -194,6 +197,8 @@ export const createEmptyVistoria = (numero: string): Vistoria => ({
     chaveDeRoda: null,
     triangulo: null,
   },
+  inspectorId: '',
+  inspectorName: '',
   itensAusentes: null,
   descricaoItensAusentes: '',
   possuiAvarias: null,

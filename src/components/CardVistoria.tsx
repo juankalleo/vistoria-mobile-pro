@@ -78,9 +78,12 @@ export function CardVistoria({ vistoria, onView, onGeneratePDF, onShare }: CardV
               </span>
             )}
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            {vistoria.segurado || "Sem nome"}
-          </p>
+          <div className="text-sm text-muted-foreground mt-1">
+            <div>{vistoria.segurado || "Sem nome"}</div>
+            {vistoria.inspectorName ? (
+              <div className="text-xs text-muted-foreground/80 mt-1">Por: {vistoria.inspectorName}</div>
+            ) : null}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className={`w-4 h-4 rounded-full ${hasVideo ? 'bg-green-500' : 'bg-red-500'}`} title={hasVideo ? 'Vídeo salvo' : 'Sem vídeo'} />

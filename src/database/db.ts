@@ -1,6 +1,7 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { v4 as uuidv4 } from "uuid";
 import { Vistoria } from '@/types/vistoria';
+import { useAuthStore } from '@/store/useAuthStore';
 import { normalizePlate } from '@/lib/plate';
 
 interface VistoriaDB extends DBSchema {
@@ -67,6 +68,16 @@ export async function saveVistoria(vistoria: Vistoria): Promise<void> {
   // Define como completa (salva de verdade)
   vistoria.status = 'completa';
   vistoria.vistoriaSalva = true;
+  // Attach current inspector info if available
+  try {
+    const currentUser = useAuthStore.getState().user;
+    if (currentUser) {
+      vistoria.inspectorId = currentUser.id;
+      vistoria.inspectorName = currentUser.name || '';
+    }
+  } catch (err) {
+    // ignore if store isn't available in this context
+  }
   await database.put('vistorias', vistoria);
   // Incrementa o número APENAS quando salva com sucesso
   await incrementVistoriaNumber();
@@ -82,6 +93,14 @@ export async function saveRascunhoVistoria(vistoria: Vistoria): Promise<void> {
   // Define como rascunho (ainda em andamento)
   vistoria.status = 'rascunho';
   vistoria.vistoriaSalva = false;
+  // Attach current inspector info if available
+  try {
+    const currentUser = useAuthStore.getState().user;
+    if (currentUser) {
+      vistoria.inspectorId = currentUser.id;
+      vistoria.inspectorName = currentUser.name || '';
+    }
+  } catch (err) {}
   await database.put('vistorias', vistoria);
   // NÃO incrementa o número quando salva rascunho
 }

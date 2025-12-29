@@ -29,15 +29,16 @@ export async function sendVerificationEmail(
       });
 
       if (response.ok) {
-        const result = await response.json();
-        // Email enviado com sucesso
+        await response.json();
         return { success: true };
-      } else {
-        const errorText = await response.text();
-        // Resposta não OK
       }
+
+      const errorText = await response.text();
+      console.error('emailService: função retornou não-OK', functionUrl, response.status, errorText);
+      return { success: false, error: `Email service error: ${response.status}` };
     } catch (fetchError) {
-      // Erro ao conectar
+      console.error('emailService: erro ao conectar função', functionUrl, fetchError);
+      // continue to fallback logic
     }
 
     // Fallback: Email Proxy local (apenas em localhost)

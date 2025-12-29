@@ -182,6 +182,10 @@ export async function registerUser(
           } catch (_) {
             console.error('Detalhes do erro Supabase (insert users):', error);
           }
+          // If validation error (e.g., value too long), return explicit error to UI
+          if ((error as any)?.code === '22001' || (error as any)?.message?.includes('character varying')) {
+            return { success: false, error: 'Um dos campos é muito longo para o banco de dados (reduza o tamanho do email/nome).' };
+          }
         } else {
           console.log('✅ Usuário criado no Supabase:', data);
           // If registered online, also store credentials
@@ -332,48 +336,129 @@ export async function syncPendingData(userId: string): Promise<void> {
   const keys = await db.getAllKeys('config');
 
   for (const key of keys) {
-    if (typeof key === 'string' && key.startsWith('pending_user_')) {
+    if (typeof key !== 'string' || !key.startsWith('pending_user_')) continue;
+
+    try {
+      const config = await db.get('config', key);
+      if (!config?.value) continue;
+
+      const { user, passwordHash } = JSON.parse(config.value as string);
+      let synced = false;
+
       try {
-        const config = await db.get('config', key);
-        if (config?.value) {
-          const { user, passwordHash } = JSON.parse(config.value as string);
-          
-          // Try to save to Supabase
-          try {
-            const { data: userData, error: userError } = await supabase.from('users').insert([{
-              id: user.id,
-              name: user.name,
-              email: user.email || null,
-              phone: user.phone || null,
-              role: user.role,
-              is_active: user.isActive,
-              created_at: user.createdAt,
-            }]).select().single();
+        // Check for existing user to avoid unique constraint conflicts
+        let existing: any = null;
+        try {
+          if (user.email && user.phone) {
+            const orFilter = `email.eq.${user.email},phone.eq.${user.phone}`;
+            const { data: existData } = await supabase.from('users').select('id').or(orFilter).limit(1).maybeSingle();
+            existing = existData;
+          } else if (user.email) {
+            const { data: existData } = await supabase.from('users').select('id').eq('email', user.email).limit(1).maybeSingle();
+            existing = existData;
+          } else if (user.phone) {
+            const { data: existData } = await supabase.from('users').select('id').eq('phone', user.phone).limit(1).maybeSingle();
+            existing = existData;
+          }
+        } catch (existErr) {
+          console.warn('Erro ao verificar usuário existente antes de inserir:', existErr);
+        }
 
-            if (userError) throw userError;
-
-            // If there is a passwordHash, insert into user_credentials
-            if (passwordHash) {
-              try {
-                await supabase.from('user_credentials').upsert({
-                  user_id: user.id,
-                  password_hash: passwordHash,
-                  updated_at: new Date().toISOString(),
-                }, { onConflict: 'user_id' });
-              } catch (credErr) {
-                console.warn('Erro ao salvar credenciais no Supabase', credErr);
-              }
+        if (existing && existing.id) {
+          console.log('syncPendingData: usuário já existe no Supabase, removendo pending:', existing.id);
+          if (passwordHash) {
+            try {
+              await supabase.from('user_credentials').upsert({ user_id: existing.id, password_hash: passwordHash, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+            } catch (credErr) {
+              console.warn('Erro ao upsert credenciais para usuário existente', credErr);
             }
-          } catch (e) {
-            console.warn('Erro ao sincronizar usuário');
+          }
+          synced = true;
+        } else {
+          const { data: userData, error: userError } = await supabase.from('users').insert([{
+            id: user.id,
+            name: user.name,
+            email: user.email || null,
+            phone: user.phone || null,
+            role: user.role,
+            is_active: user.isActive,
+            created_at: user.createdAt,
+          }]).select().single();
+
+          if (userError) {
+            console.warn('Erro ao inserir usuário no Supabase:', userError);
+            throw userError;
           }
 
-          await db.delete('config', key);
+          if (passwordHash) {
+            try {
+              const { error: credErr } = await supabase.from('user_credentials').upsert({ user_id: user.id, password_hash: passwordHash, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+              if (credErr) console.warn('Erro ao salvar credenciais no Supabase', credErr);
+            } catch (credErr) {
+              console.warn('Erro ao salvar credenciais no Supabase', credErr);
+            }
+          }
+
+          synced = true;
         }
       } catch (e) {
-        console.warn('Erro ao processar pending user');
+        console.warn('Erro ao inserir/atualizar usuário no Supabase:', e);
+      }
+
+      if (synced) {
+        await db.delete('config', key);
+        console.log('syncPendingData: pending user synced and removed:', user.id);
+      } else {
+        console.log('syncPendingData: pending user retained for retry:', user.id);
+      }
+    } catch (e) {
+      console.warn('Erro ao processar pending user', e);
+    }
+  }
+}
+
+// Create a session from a pending local user (after email verification)
+export async function createSessionFromPending(emailOrPhone: string): Promise<{ success: boolean; session?: AuthSession; error?: string }> {
+  try {
+    const db = await getLocalDB();
+    const keys = await db.getAllKeys('config');
+    for (const key of keys) {
+      if (typeof key === 'string' && key.startsWith('pending_user_')) {
+        const config = await db.get('config', key);
+        if (config?.value) {
+          const { user } = JSON.parse(config.value as string);
+          if (!user) continue;
+          const match = (user.email && user.email === emailOrPhone) || (user.phone && user.phone === emailOrPhone);
+          if (match) {
+            const session: AuthSession = {
+              user: {
+                id: user.id,
+                name: user.name,
+                email: user.email || undefined,
+                phone: user.phone || undefined,
+                role: user.role,
+                isActive: user.isActive,
+                createdAt: user.createdAt,
+              },
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            };
+
+            // Save session locally so app treats user as logged in
+            await saveSessionLocally(session);
+
+            // Optionally remove the pending entry; keep it so sync can retry later
+            // await db.delete('config', key);
+
+            return { success: true, session };
+          }
+        }
       }
     }
+
+    return { success: false, error: 'Pending user not found' };
+  } catch (error) {
+    console.error('Erro ao criar sessão a partir de pending user:', error);
+    return { success: false, error: 'Erro ao criar sessão' };
   }
 }
 

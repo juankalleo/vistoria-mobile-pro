@@ -31,8 +31,13 @@ export function HomeScreen() {
   const loadVistorias = async () => {
     try {
       const data = await getAllVistorias();
-      // Mostra todas as vistorias (rascunhos + completas)
-      setVistorias(data);
+      // Filtrar por visibilidade: se não for admin, mostrar apenas vistorias do inspector atual
+      const currentUser = user;
+      let visible = data;
+      if (currentUser && currentUser.role !== 'admin') {
+        visible = data.filter((v) => v.inspectorId === currentUser.id);
+      }
+      setVistorias(visible);
     } catch (error) {
       console.error("Erro ao carregar vistorias:", error);
     } finally {

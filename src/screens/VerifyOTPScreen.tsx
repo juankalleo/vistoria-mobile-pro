@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
+import { createSessionFromPending } from '@/services/authService';
 import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,14 +78,21 @@ export default function VerifyOTPScreen() {
       }
       // Mostrar notificação de sucesso
       if (isNewUser) {
-        toast.success('Verificação realizada — bem-vindo!');
-      } else {
-        toast.success('Código verificado. Você pode criar uma nova senha.');
-      }
-      if (isNewUser) {
+        // Tentar criar sessão local a partir do pending user salvo
+        try {
+          const res = await createSessionFromPending(contact!);
+          if (res.success) {
+            toast.success('Verificação realizada — bem-vindo!');
+          } else {
+            toast.success('Verificação realizada — bem-vindo!');
+          }
+        } catch (e) {
+          console.warn('Erro ao criar sessão local após verificação', e);
+        }
         // Ir para tela de home após registro bem-sucedido
         navigate('/');
       } else {
+        toast.success('Código verificado. Você pode criar uma nova senha.');
         // Ir para tela de alteração de senha
         navigate('/change-password');
       }

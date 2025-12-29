@@ -219,13 +219,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   syncData: async () => {
-    const state = get();
-    if (state.user && navigator.onLine) {
-      try {
-        await syncPendingData(state.user.id);
-      } catch (error) {
-        console.error('Erro ao sincronizar dados:', error);
-      }
+    // Sempre tentar sincronizar pendentes quando online (não depende de sessão ativa)
+    if (!navigator.onLine) return;
+    try {
+      await syncPendingData('');
+    } catch (error) {
+      console.error('Erro ao sincronizar dados:', error);
     }
   },
 
@@ -238,4 +237,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => useAuthStore.setState({ isOnline: true }));
   window.addEventListener('offline', () => useAuthStore.setState({ isOnline: false }));
+  // Dev helper: expose store to window for manual testing (only in dev)
+  if (import.meta.env.MODE === 'development') {
+    // @ts-ignore
+    window.useAuthStore = useAuthStore;
+  }
 }

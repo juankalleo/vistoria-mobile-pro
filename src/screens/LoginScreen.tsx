@@ -49,15 +49,26 @@ export default function LoginScreen() {
       return;
     }
 
+    // Validação rápida de tamanho de campos para evitar erro 22001 do Supabase
+    if (registerEmail.length > 50) {
+      setRegisterError('Email muito longo (use até 50 caracteres)');
+      return;
+    }
+
     if (registerPassword !== registerConfirmPassword) {
       setRegisterError('As senhas não coincidem');
       return;
     }
 
     try {
-      await register(registerName, registerEmail, registerPassword, registerConfirmPassword);
-      // Redireciona para tela de verificação de código
-      navigate('/verify-otp', {
+      // isPhone should be false for email registration
+      const ok = await register(registerName, registerEmail, registerPassword, false);
+      if (!ok) {
+        setRegisterError('Erro ao registrar. Verifique os dados e tente novamente.');
+        return;
+      }
+      // Redireciona para tela de verificação de código (marcando como novo usuário)
+      navigate(`/verify-otp?isNewUser=true`, {
         state: {
           email: registerEmail,
           info: 'Um código foi enviado para seu email. Verifique também a caixa de spam.'

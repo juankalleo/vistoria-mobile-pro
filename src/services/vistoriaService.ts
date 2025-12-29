@@ -17,8 +17,17 @@ export async function saveVistoriaWithSync(
   try {
     // 1. Salvar localmente (sempre)
     const db = await getDB();
+    // ensure inspector info when saving locally
     vistoria.status = 'completa'; // Marcar como completa
     vistoria.vistoriaSalva = true;
+    vistoria.inspectorId = vistoria.inspectorId || userId;
+    // try to fetch inspector name from Supabase if not present
+    if (!vistoria.inspectorName) {
+      try {
+        const { data: userRecord } = await supabase.from('users').select('name').eq('id', userId).single();
+        vistoria.inspectorName = (userRecord as any)?.name || '';
+      } catch {}
+    }
     await db.put('vistorias', vistoria);
 
     // 2. Se online, sincronizar com Supabase
@@ -29,6 +38,8 @@ export async function saveVistoriaWithSync(
             {
               id: vistoria.id,
               user_id: userId,
+              inspector_id: vistoria.inspectorId || userId,
+              inspector_name: vistoria.inspectorName || null,
               numero: vistoria.numero,
               placa: vistoria.placa,
               data: vistoria.data,
@@ -216,6 +227,8 @@ function parseSupabaseVistoria(record: any): Vistoria {
     pdfBase64: record.pdf_base64,
     criadoEm: record.created_at,
     atualizadoEm: record.updated_at,
+    inspectorId: record.inspector_id || record.user_id || '',
+    inspectorName: record.inspector_name || '',
   };
 }
 

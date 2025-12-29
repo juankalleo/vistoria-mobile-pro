@@ -1,5 +1,7 @@
+require('dotenv').config({ path: '.env.local' });
 const express = require('express');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = 3001;
@@ -7,7 +9,45 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
-const RESEND_API_KEY = 're_CXzuhxay_P9xUmuZE75qwV2KUFzwKdvWj';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD;
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = process.env.SMTP_PORT;
+const SMTP_SECURE = process.env.SMTP_SECURE;
+
+let transporter = null;
+try {
+  if (SMTP_HOST && EMAIL_USER && EMAIL_PASSWORD) {
+    transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT ? parseInt(SMTP_PORT, 10) : 587,
+      secure: SMTP_SECURE === 'true',
+      auth: {
+        user: EMAIL_USER,
+        pass: EMAIL_PASSWORD,
+      },
+    });
+    console.log('✅ Email proxy: using custom SMTP host', SMTP_HOST);
+  } else if (EMAIL_USER && EMAIL_PASSWORD) {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: EMAIL_USER,
+        pass: EMAIL_PASSWORD,
+      },
+    });
+    console.log('✅ Email proxy: using Gmail SMTP for', EMAIL_USER);
+  }
+} catch (err) {
+  console.warn('⚠️  Failed to create nodemailer transporter', err && err.message);
+}
+
+if (!RESEND_API_KEY) {
+  console.warn('⚠️  RESEND_API_KEY not set in .env.local — proxy requests will fail.');
+}
 
 app.post('/api/send-email', async (req, res) => {
   try {
@@ -17,17 +57,8 @@ app.post('/api/send-email', async (req, res) => {
       return res.status(400).json({ error: 'Email and code are required' });
     }
 
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'onboarding@resend.dev',
-        to: email,
-        subject: '🔐 Seu código de verificação - Vistoria',
-        html: `
+    const subject = '🔐 Seu código de verificação - Vistoria';
+    const html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
               <h1 style="margin: 0;">Vistoria Mobile</h1>
@@ -41,17 +72,49 @@ app.post('/api/send-email', async (req, res) => {
               <p>Válido por 10 minutos.</p>
             </div>
           </div>
-        `,
-      }),
-    });
+        `;
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      return res.status(response.status).json(result);
+    if (transporter) {
+      try {
+        const info = await transporter.sendMail({
+          from: FROM_EMAIL,
+          to: email,
+          subject,
+          html,
+        });
+        return res.json({ messageId: info.messageId, accepted: info.accepted });
+      } catch (err) {
+        console.error('nodemailer send error:', err && err.message);
+        return res.status(500).json({ error: err && err.message });
+      }
     }
 
-    res.json(result);
+    // Fallback to Resend API if configured
+    if (RESEND_API_KEY) {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: FROM_EMAIL,
+          to: email,
+          subject,
+          html,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json(result);
+      }
+
+      return res.json(result);
+    }
+
+    return res.status(500).json({ error: 'No email transporter configured' });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: error.message });
